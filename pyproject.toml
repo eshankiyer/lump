@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lump"
+version = "0.1.0"
+description = "Open-source runtime AI threat prevention for every layer: browser, endpoint, network, API gateway and AI agents."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [{ name = "Lump contributors" }]
+keywords = ["security", "ai-security", "prompt-injection", "dlp", "shadow-ai", "mcp", "llm-firewall"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+]
+# The core engine, gateway, proxy, DNS filter, control plane and MCP firewall
+# are pure standard library. Optional extras unlock extra capabilities.
+dependencies = []
+
+[project.optional-dependencies]
+host = ["psutil>=5.9"]
+tls = ["cryptography>=42"]
+yaml = ["pyyaml>=6"]
+all = ["psutil>=5.9", "cryptography>=42", "pyyaml>=6"]
+dev = ["pytest>=8", "ruff>=0.5", "psutil>=5.9", "cryptography>=42", "pyyaml>=6"]
+
+[project.scripts]
+lump = "lump.cli:main"
+
+[project.entry-points."lump.detectors"]
+# Third-party packages can register extra detectors here, e.g.
+# my_classifier = "my_pkg.detector:MyDetector"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lump = ["data/*.json", "data/*.toml", "data/corpus/*.jsonl", "server/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "S", "UP", "I"]
+ignore = [
+  "S101",  # assert is fine in tests
+  "S104",  # binding to all interfaces is an explicit, documented operator choice
+  "E501",  # long regex literals read better on one line
+  "E702",  # compact argparse setup uses intentional semicolons
+  "S110",  # defensive try/except/pass: a bad plugin/process must not break inspection
+  "S112",  # defensive try/except/continue, same rationale
+  "S603",  # subprocess with an operator-supplied MCP command is the intended use
+  "ISC003",  # explicit string concatenation is deliberate for the HTTP response blob
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]

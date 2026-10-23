@@ -1,0 +1,38 @@
+# LLM gateway as a cluster service. Apps set base_url=http://lump-gateway:8080/v1
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: lump-config }
+data:
+  lump.toml: |
+    [policy]
+    mode = "enforce"
+    [server]
+    fail_open = false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: lump-gateway }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: lump-gateway } }
+  template:
+    metadata: { labels: { app: lump-gateway } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001 }
+      containers:
+        - name: gateway
+          image: lump:latest
+          args: ["gateway", "-c", "/etc/lump/lump.toml", "--host", "0.0.0.0", "--port", "8080", "--upstream", "https://api.openai.com"]
+          ports: [{ containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /healthz, port: 8080 } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 512Mi } }
+          volumeMounts: [{ name: config, mountPath: /etc/lump, readOnly: true }]
+      volumes: [{ name: config, configMap: { name: lump-config } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lump-gateway }
+spec:
+  selector: { app: lump-gateway }
+  ports: [{ port: 8080, targetPort: 8080 }]

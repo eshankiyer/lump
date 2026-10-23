@@ -1,0 +1,19 @@
+# Gateway + control plane + DNS filter sharing one config and audit log.
+services:
+  control-plane:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["serve", "-c", "/etc/lump/lump.toml", "--host", "0.0.0.0", "--port", "8080", "--audit-log", "/var/log/lump/audit.jsonl"]
+    ports: ["8080:8080"]
+    volumes: ["../examples/lump.toml:/etc/lump/lump.toml:ro", "lump-logs:/var/log/lump"]
+  gateway:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["gateway", "-c", "/etc/lump/lump.toml", "--host", "0.0.0.0", "--port", "8081", "--upstream", "https://api.openai.com", "--audit-log", "/var/log/lump/audit.jsonl"]
+    ports: ["8081:8081"]
+    volumes: ["../examples/lump.toml:/etc/lump/lump.toml:ro", "lump-logs:/var/log/lump"]
+  dns:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["dns", "-c", "/etc/lump/lump.toml", "--host", "0.0.0.0", "--port", "5353", "--resolver", "1.1.1.1:53"]
+    ports: ["5353:5353/udp"]
+    volumes: ["../examples/lump.toml:/etc/lump/lump.toml:ro"]
+volumes:
+  lump-logs: {}

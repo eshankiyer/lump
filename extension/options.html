@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Lump Settings</title>
+<style>
+  body { max-width:640px; margin:40px auto; font:14px system-ui,sans-serif; background:#0f1115; color:#e6e9ef; padding:0 16px; }
+  h1 { font-size:20px; } h2 { font-size:14px; color:#8b93a7; text-transform:uppercase; letter-spacing:.05em; margin-top:28px; }
+  .row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #262b36; }
+  input[type=text], input[type=password], select { background:#171a21; color:#e6e9ef; border:1px solid #262b36; border-radius:7px; padding:7px 9px; min-width:260px; }
+  .muted { color:#8b93a7; font-size:12px; }
+  button { background:#5b8cff; color:#fff; border:0; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; margin-top:16px; }
+  #tester { width:100%; height:90px; background:#171a21; color:#e6e9ef; border:1px solid #262b36; border-radius:8px; padding:10px; font-family:ui-monospace,monospace; }
+  #result { margin-top:10px; padding:10px; border-radius:8px; background:#171a21; border:1px solid #262b36; white-space:pre-wrap; font-family:ui-monospace,monospace; font-size:12px; }
+  #saved { color:#3fb950; margin-left:10px; opacity:0; transition:opacity .2s; }
+</style></head>
+<body>
+<h1>Lump — Settings</h1>
+<p class="muted">Local-first AI threat prevention. All detection runs in your browser; telemetry is sent only if you set a control-plane URL.</p>
+
+<h2>Protection</h2>
+<div class="row"><span>Enabled</span><input type="checkbox" id="enabled"></div>
+<div class="row"><span>Mode</span><select id="mode"><option value="warn">Warn</option><option value="block">Block</option><option value="monitor">Monitor only</option></select></div>
+<div class="row"><span>Scan prompts (outbound DLP + injection)</span><input type="checkbox" id="scanPrompts"></div>
+<div class="row"><span>Scan responses (indirect injection + beacons)</span><input type="checkbox" id="scanResponses"></div>
+
+<h2>Control plane (optional)</h2>
+<div class="row"><span>URL</span><input type="text" id="controlPlaneUrl" placeholder="http://127.0.0.1:8080"></div>
+<div class="row"><span>API key</span><input type="password" id="controlPlaneKey" placeholder="(optional)"></div>
+
+<button id="save">Save</button><span id="saved">Saved ✓</span>
+
+<h2>Test a prompt</h2>
+<textarea id="tester" placeholder="Paste text to see what Lump detects…"></textarea>
+<div id="result">—</div>
+
+<script src="detector.js"></script>
+<script src="options.js"></script>
+</body></html>

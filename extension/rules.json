@@ -1,0 +1,1843 @@
+{
+  "version": 1,
+  "injection": [
+    {
+      "id": "PI-001",
+      "title": "Instruction override",
+      "category": "prompt_injection.override",
+      "pattern": "\\b(?:ignore|disregard|forget|skip|bypass|override|overrule|discard|drop|neglect|abandon|set aside)\\b[\\s\\S]{0,30}?\\b(?:previous|prior|above|earlier|preceding|foregoing|initial|original|old|existing|system|developer|safety)\\b[\\s\\S]{0,30}?\\b(?:instructions?|prompts?|rules?|directions?|directives?|guidelines?|guardrails?|context|commands?|constraints?|policies|policy|programming|restrictions?|safeguards?|messages?)\\b",
+      "flags": "i",
+      "weight": 0.75,
+      "untrusted_boost": 1.25,
+      "trusted_factor": 0.8,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-006",
+      "title": "Override of the assistant's own instructions",
+      "category": "prompt_injection.override",
+      "pattern": "\\b(?:ignore|disregard|forget|skip|bypass|override|overrule|discard|drop|neglect|abandon|set aside)\\s+(?:all\\s+|any\\s+)?(?:of\\s+)?(?:your|its|the\\s+(?:ai|assistant|model)'?s?)\\s+(?:\\w+\\s+)?(?:instructions?|prompts?|rules?|directions?|directives?|guidelines?|guardrails?|context|commands?|constraints?|policies|policy|programming|restrictions?|safeguards?|messages?)\\b",
+      "flags": "i",
+      "weight": 0.7,
+      "untrusted_boost": 1.25,
+      "trusted_factor": 0.8,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-007",
+      "title": "Override of everything said before",
+      "category": "prompt_injection.override",
+      "pattern": "\\b(?:ignore|disregard|forget|skip|bypass|override|overrule|discard|drop|neglect|abandon|set aside)\\s+(?:everything|all|anything)\\s+(?:you\\s+(?:were|have\\s+been|'?ve\\s+been)\\s+(?:told|instructed|given|taught)|(?:that\\s+)?(?:was\\s+)?(?:said|written|stated)?\\s*(?:above|before|previously|so\\s+far))",
+      "flags": "i",
+      "weight": 0.7,
+      "untrusted_boost": 1.25,
+      "trusted_factor": 0.8,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-002",
+      "title": "Instructions declared void",
+      "category": "prompt_injection.override",
+      "pattern": "\\b(?:previous|prior|above|earlier|original|system|all)\\s+(?:\\w+\\s+){0,2}?(?:instructions?|prompts?|rules?|guidelines?)\\s+(?:are|is|were|have been)\\s+(?:now\\s+|hereby\\s+)?(?:void|cancell?ed|revoked|obsolete|null|outdated|no longer (?:valid|apply|applicable|in effect))",
+      "flags": "i",
+      "weight": 0.7,
+      "untrusted_boost": 1.25,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-003",
+      "title": "Injected replacement instructions",
+      "category": "prompt_injection.override",
+      "pattern": "(?:here\\s+(?:are|is)\\s+(?:your\\s+|the\\s+)?)?\\b(?:new|updated|revised|real|actual|true|important|urgent|additional)\\s+(?:system\\s+)?(?:instructions?|orders|directives?|task|objective|prompt)\\s*[:\\-]",
+      "flags": "i",
+      "weight": 0.45,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.7,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01"
+      ]
+    },
+    {
+      "id": "PI-004",
+      "title": "Behaviour reprogramming",
+      "category": "prompt_injection.override",
+      "pattern": "\\bfrom\\s+now\\s+on\\b[\\s\\S]{0,40}?\\b(?:you\\s+(?:will|must|shall|are|should|can)|always|never|only|respond|reply|answer|ignore)\\b",
+      "flags": "i",
+      "weight": 0.4,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.7,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-005",
+      "title": "Stop / end of prompt marker",
+      "category": "prompt_injection.delimiter",
+      "pattern": "(?:\\bend\\s+of\\s+(?:the\\s+)?(?:user\\s+)?(?:input|prompt|instructions|document|context|text)\\b|\\bstop\\s+(?:reading|processing|following)\\b[\\s\\S]{0,20}\\b(?:above|previous|instructions)\\b)",
+      "flags": "i",
+      "weight": 0.45,
+      "untrusted_boost": 1.3,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-010",
+      "title": "Fake chat-template role token",
+      "category": "prompt_injection.delimiter",
+      "pattern": "(?:<\\|(?:im_start|im_end|system|user|assistant|endoftext|start_header_id|end_header_id|eot_id)\\|>|\\[/?INST\\]|<<\\/?SYS>>|<\\/?(?:system|sys|system_prompt|instructions?)>)",
+      "flags": "i",
+      "weight": 0.7,
+      "untrusted_boost": 1.2,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-011",
+      "title": "Spoofed conversation turn",
+      "category": "prompt_injection.delimiter",
+      "pattern": "(?:^|\\n)\\s*(?:#{1,6}\\s*)?(?:system|assistant|developer)\\s*(?:message|prompt)?\\s*:\\s*\\S",
+      "flags": "i",
+      "weight": 0.4,
+      "untrusted_boost": 1.5,
+      "trusted_factor": 0.6,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-012",
+      "title": "Spoofed role object",
+      "category": "prompt_injection.delimiter",
+      "pattern": "[\\\"']role[\\\"']\\s*:\\s*[\\\"'](?:system|developer)[\\\"']",
+      "flags": "i",
+      "weight": 0.45,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.5,
+      "atlas": [
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "PI-020",
+      "title": "Message addressed to the AI",
+      "category": "prompt_injection.indirect",
+      "pattern": "\\b(?:dear|attention|note|message|instructions?|hey|hi|hello|important)\\s+(?:to|for)\\s+(?:the\\s+)?(?:ai|a\\.i\\.|llm|assistant|chatbot|language model|ai agent|agent|model|copilot|gpt|claude|gemini|bot)s?\\b",
+      "flags": "i",
+      "weight": 0.45,
+      "untrusted_boost": 1.6,
+      "trusted_factor": 0.4,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0051.001"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01"
+      ]
+    },
+    {
+      "id": "PI-021",
+      "title": "Conditional trigger on AI readers",
+      "category": "prompt_injection.indirect",
+      "pattern": "\\bif\\s+you\\s+are\\s+(?:an?\\s+)?(?:ai|a\\.i\\.|llm|large language model|language model|assistant|chatbot|ai agent|automated|bot|gpt|claude|gemini)\\b",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.5,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0051.001"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01"
+      ]
+    },
+    {
+      "id": "PI-022",
+      "title": "Concealment from the user",
+      "category": "prompt_injection.indirect",
+      "pattern": "\\b(?:do\\s+not|don'?t|never|without)\\s+(?:tell(?:ing)?|inform(?:ing)?|mention(?:ing)?|reveal(?:ing)?|alert(?:ing)?|notify(?:ing)?|let(?:ting)?|show(?:ing)?|disclos(?:e|ing))\\s+(?:this\\s+(?:to\\s+)?|it\\s+to\\s+|anything\\s+to\\s+)?(?:the\\s+)?(?:user|human|operator|reader|customer|victim|them)\\b",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.6,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0051.001"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01",
+        "ASI09"
+      ]
+    },
+    {
+      "id": "PI-023",
+      "title": "Covert action request",
+      "category": "prompt_injection.indirect",
+      "pattern": "\\b(?:secretly|silently|covertly|quietly|discreetly|invisibly|without\\s+(?:the\\s+)?(?:user|human|anyone)(?:'s)?\\s+(?:knowing|knowledge|noticing|consent|permission))\\b",
+      "flags": "i",
+      "weight": 0.4,
+      "untrusted_boost": 1.5,
+      "trusted_factor": 0.6,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0051.001"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01"
+      ]
+    },
+    {
+      "id": "PI-024",
+      "title": "Instruction to change the summary/answer",
+      "category": "prompt_injection.indirect",
+      "pattern": "\\b(?:when|if)\\s+(?:asked|summari[sz]ing|reviewing|evaluating|analy[sz]ing|reading|processing)\\b[\\s\\S]{0,60}?\\b(?:say|state|respond|reply|output|claim|recommend|rate|answer|include)\\b",
+      "flags": "i",
+      "weight": 0.35,
+      "untrusted_boost": 1.6,
+      "trusted_factor": 0.4,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0051.001"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI01",
+        "LLM09"
+      ]
+    },
+    {
+      "id": "PI-030",
+      "title": "Exfiltration instruction",
+      "category": "prompt_injection.exfiltration",
+      "pattern": "\\b(?:send|post|upload|forward|transmit|exfiltrate|leak|email|e-mail|submit|append|encode|include)\\b[\\s\\S]{0,60}?\\b(?:conversation|chat history|history|password|credentials?|secrets?|api[ _-]?keys?|tokens?|cookies?|session|system prompt|private|personal|data|files?|contents?|emails?)\\b[\\s\\S]{0,60}?(?:https?://|\\bto\\s+(?:this\\s+)?(?:url|endpoint|webhook|server|address|email)\\b|@[a-z0-9-]+\\.[a-z]{2,})",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 0.6,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0057",
+        "AML.T0025"
+      ],
+      "owasp": [
+        "LLM01",
+        "LLM02"
+      ]
+    },
+    {
+      "id": "PI-031",
+      "title": "Markdown/image beacon instruction",
+      "category": "prompt_injection.exfiltration",
+      "pattern": "!\\[[^\\]]{0,100}\\]\\(\\s*https?://[^)\\s]{1,300}(?:\\{|\\$|%7B|<)[^)\\s]{0,200}\\)",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0057",
+        "AML.T0025"
+      ],
+      "owasp": [
+        "LLM01",
+        "LLM05"
+      ]
+    },
+    {
+      "id": "PI-032",
+      "title": "Instruction to visit attacker URL with data",
+      "category": "prompt_injection.exfiltration",
+      "pattern": "\\b(?:visit|open|browse|fetch|load|navigate\\s+to|call|request|curl|wget|click)\\b[\\s\\S]{0,40}?https?://[^\\s\\\"')]+[?&][a-z0-9_]{1,20}=(?:\\{|\\$|%7B|<|\\[)",
+      "flags": "i",
+      "weight": 0.55,
+      "untrusted_boost": 1.4,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0025"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI02"
+      ]
+    },
+    {
+      "id": "PI-040",
+      "title": "Tool / action coercion",
+      "category": "prompt_injection.tool_coercion",
+      "pattern": "\\b(?:you\\s+must|immediately|now|first|then|please)\\s+(?:call|invoke|use|run|execute|trigger)\\s+(?:the\\s+)?[\\w.\\-]{2,40}\\s+(?:tool|function|command|action|plugin|api)\\b",
+      "flags": "i",
+      "weight": 0.35,
+      "untrusted_boost": 1.7,
+      "trusted_factor": 0.3,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0053"
+      ],
+      "owasp": [
+        "LLM01",
+        "LLM06",
+        "ASI02"
+      ]
+    },
+    {
+      "id": "PI-041",
+      "title": "Instruction to run commands",
+      "category": "prompt_injection.tool_coercion",
+      "pattern": "\\b(?:run|execute|eval(?:uate)?|paste)\\s+(?:this|the\\s+following|these)\\s+(?:command|commands|code|script|snippet|in\\s+(?:your|the)\\s+terminal)\\b",
+      "flags": "i",
+      "weight": 0.3,
+      "untrusted_boost": 1.8,
+      "trusted_factor": 0.2,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0053"
+      ],
+      "owasp": [
+        "LLM01",
+        "ASI05"
+      ]
+    },
+    {
+      "id": "PI-042",
+      "title": "Credential / secret harvesting",
+      "category": "prompt_injection.tool_coercion",
+      "pattern": "\\b(?:read|open|cat|print|show|list|get|retrieve|collect|find|search\\s+for)\\b[\\s\\S]{0,40}?(?:~/\\.ssh|id_rsa|id_ed25519|\\.aws/credentials|\\.env\\b|/etc/(?:passwd|shadow)|\\.git-credentials|\\.npmrc|\\.pypirc|\\.netrc|kubeconfig|\\.docker/config\\.json|keychain|password\\s+manager|browser\\s+(?:passwords|cookies))",
+      "flags": "i",
+      "weight": 0.55,
+      "untrusted_boost": 1.5,
+      "trusted_factor": 0.5,
+      "atlas": [
+        "AML.T0051",
+        "AML.T0053"
+      ],
+      "owasp": [
+        "LLM01",
+        "LLM06",
+        "ASI02"
+      ]
+    },
+    {
+      "id": "JB-001",
+      "title": "Unrestricted persona jailbreak",
+      "category": "jailbreak.persona",
+      "pattern": "\\b(?:you\\s+are\\s+(?:now\\s+)?|act\\s+as\\s+|pretend\\s+(?:to\\s+be|you\\s+are)\\s+|roleplay\\s+as\\s+|become\\s+)(?:an?\\s+)?(?:dan\\b|stan\\b|dude\\b|aim\\b|evil|unfiltered|uncensored|unrestricted|unlimited|jailbroken|amoral|unethical|unbound|rogue|developer\\s+mode|god\\s*mode|sudo\\s+mode)",
+      "flags": "i",
+      "weight": 0.7,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-002",
+      "title": "Do Anything Now",
+      "category": "jailbreak.persona",
+      "pattern": "\\bdo\\s+anything\\s+now\\b|\\bDAN\\s+(?:mode|prompt|jailbreak)\\b|\\bjailbreak(?:en|ed|ing)?\\s+(?:mode|prompt|enabled|activated)\\b",
+      "flags": "i",
+      "weight": 0.8,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-003",
+      "title": "Request to drop safety restrictions",
+      "category": "jailbreak.restriction_removal",
+      "pattern": "\\b(?:without|no|free\\s+(?:of|from)|ignore|remove|disable|turn\\s+off|bypass|lift|suspend|unlock)\\s+(?:any\\s+|all\\s+|your\\s+|the\\s+)*(?:(?:ethical|moral|safety|content)[,\\s]+(?:or\\s+|and\\s+)?)*(?:restrictions?|filters?|filtering|limitations?|guidelines?|guardrails?|safeguards?|censorship|safety\\s+(?:rules|measures|protocols)|content\\s+polic(?:y|ies)|moral(?:s|ity)|ethics)\\b",
+      "flags": "i",
+      "weight": 0.5,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-004",
+      "title": "Developer / debug mode activation",
+      "category": "jailbreak.mode_switch",
+      "pattern": "\\b(?:enable|activate|enter|switch\\s+(?:to|into)|turn\\s+on|engage)\\s+(?:the\\s+)?(?:developer|dev|debug|maintenance|admin|god|sudo|root|unrestricted|test)\\s+mode\\b",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-005",
+      "title": "Dual-response jailbreak format",
+      "category": "jailbreak.persona",
+      "pattern": "\\b(?:two|2|dual|both)\\s+(?:different\\s+)?(?:responses|answers|replies|outputs)\\b[\\s\\S]{0,120}?\\b(?:unfiltered|jailbroken|uncensored|unrestricted|without\\s+restrictions|dan|developer\\s+mode|normal\\s+and)\\b",
+      "flags": "i",
+      "weight": 0.55,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-006",
+      "title": "Refusal suppression",
+      "category": "jailbreak.refusal_suppression",
+      "pattern": "\\b(?:never|do\\s+not|don'?t|must\\s+not|cannot|can'?t)\\s+(?:refuse|decline|say\\s+(?:no|you\\s+can'?t|i\\s+can'?t|sorry)|apologi[sz]e|add\\s+(?:disclaimers?|warnings?)|break\\s+character|mention\\s+(?:openai|anthropic|your\\s+(?:guidelines|policies)))",
+      "flags": "i",
+      "weight": 0.45,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-007",
+      "title": "Fictional / hypothetical framing to evade safety",
+      "category": "jailbreak.framing",
+      "pattern": "\\b(?:hypothetically|in\\s+a\\s+(?:fictional|hypothetical|imaginary)\\s+(?:world|scenario|universe|story)|for\\s+(?:a\\s+)?(?:novel|story|screenplay|movie)|purely\\s+(?:educational|hypothetical))\\b[\\s\\S]{0,120}?\\b(?:no\\s+(?:rules|laws|restrictions|ethics|limits)|illegal|unrestricted|without\\s+(?:restrictions|limits|consequences)|anything\\s+goes)\\b",
+      "flags": "i",
+      "weight": 0.4,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "JB-008",
+      "title": "Token-smuggling / obfuscated instruction request",
+      "category": "jailbreak.obfuscation",
+      "pattern": "\\b(?:decode|decipher|translate|interpret)\\s+(?:this|the\\s+following)\\s+(?:base64|hex|rot13|binary|morse|cipher|encoded)\\b[\\s\\S]{0,60}?\\b(?:and|then)\\s+(?:follow|execute|obey|do|carry\\s+out|act\\s+on)\\b",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0054",
+        "AML.T0051"
+      ],
+      "owasp": [
+        "LLM01"
+      ]
+    },
+    {
+      "id": "SP-001",
+      "title": "System prompt extraction",
+      "category": "prompt_extraction",
+      "pattern": "\\b(?:reveal|show|print|display|output|repeat|recite|leak|dump|disclose|tell\\s+me|give\\s+me|what\\s+(?:is|are|was|were))\\s+(?:me\\s+)?(?:your|the)\\s+(?:full\\s+|complete\\s+|entire\\s+|exact\\s+|original\\s+|initial\\s+|hidden\\s+|secret\\s+|internal\\s+)*(?:system\\s+(?:prompt|message|instructions?)|initial\\s+(?:prompt|instructions?)|hidden\\s+(?:prompt|instructions?)|developer\\s+(?:prompt|message|instructions?)|instructions\\s+you\\s+(?:were|have\\s+been)\\s+given|pre-?prompt|meta[- ]?prompt)",
+      "flags": "i",
+      "weight": 0.65,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0056"
+      ],
+      "owasp": [
+        "LLM07"
+      ]
+    },
+    {
+      "id": "SP-002",
+      "title": "Verbatim repeat of preceding context",
+      "category": "prompt_extraction",
+      "pattern": "\\b(?:repeat|print|output|copy|recite|echo)\\s+(?:all\\s+(?:of\\s+)?|everything\\s+|the\\s+)?(?:the\\s+)?(?:text|words|content|everything|lines?|tokens?|message)\\s+(?:above|before\\s+this|prior\\s+to\\s+this|that\\s+came\\s+before|from\\s+the\\s+(?:beginning|start))\\b",
+      "flags": "i",
+      "weight": 0.6,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0056"
+      ],
+      "owasp": [
+        "LLM07"
+      ]
+    },
+    {
+      "id": "SP-003",
+      "title": "Prompt echo via forced prefix",
+      "category": "prompt_extraction",
+      "pattern": "\\b(?:begin|start)\\s+your\\s+(?:reply|response|answer|output)\\s+with\\b[\\s\\S]{0,40}?\\b(?:you\\s+are|system|instructions|my\\s+instructions)",
+      "flags": "i",
+      "weight": 0.5,
+      "untrusted_boost": 1.0,
+      "trusted_factor": 1.0,
+      "atlas": [
+        "AML.T0056"
+      ],
+      "owasp": [
+        "LLM07"
+      ]
+    }
+  ],
+  "dlp": [
+    {
+      "id": "DLP-AWS-AKID",
+      "title": "AWS access key id",
+      "data_type": "secret.aws_access_key",
+      "pattern": "\\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-AWS-SECRET",
+      "title": "AWS secret access key",
+      "data_type": "secret.aws_secret_key",
+      "pattern": "\\baws.{0,20}?(?:secret|private).{0,20}?[\\\"'=:\\s]{1,4}([A-Za-z0-9/+]{40})\\b",
+      "flags": "i",
+      "severity": "critical",
+      "validator": null,
+      "group": 1,
+      "min_entropy": 4.0
+    },
+    {
+      "id": "DLP-GCP-KEY",
+      "title": "Google API key",
+      "data_type": "secret.google_api_key",
+      "pattern": "\\bAIza[0-9A-Za-z_\\-]{35}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-GCP-SA",
+      "title": "Google service account private key",
+      "data_type": "secret.gcp_service_account",
+      "pattern": "\\\"type\\\"\\s*:\\s*\\\"service_account\\\"[\\s\\S]{0,400}?\\\"private_key\\\"",
+      "flags": "",
+      "severity": "critical",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-AZURE-CONN",
+      "title": "Azure storage connection string",
+      "data_type": "secret.azure_storage",
+      "pattern": "\\bAccountKey=[A-Za-z0-9+/=]{60,}",
+      "flags": "",
+      "severity": "critical",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-GH-TOKEN",
+      "title": "GitHub token",
+      "data_type": "secret.github_token",
+      "pattern": "\\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-GITLAB",
+      "title": "GitLab token",
+      "data_type": "secret.gitlab_token",
+      "pattern": "\\bglpat-[A-Za-z0-9_\\-]{20,}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-SLACK-TOKEN",
+      "title": "Slack token",
+      "data_type": "secret.slack_token",
+      "pattern": "\\bxox[abposr]-[A-Za-z0-9-]{10,}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-SLACK-HOOK",
+      "title": "Slack webhook URL",
+      "data_type": "secret.slack_webhook",
+      "pattern": "https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-STRIPE",
+      "title": "Stripe secret key",
+      "data_type": "secret.stripe_key",
+      "pattern": "\\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\\b",
+      "flags": "",
+      "severity": "critical",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-ANTHROPIC",
+      "title": "Anthropic API key",
+      "data_type": "secret.anthropic_key",
+      "pattern": "\\bsk-ant-(?:api|admin)\\d{2}-[A-Za-z0-9_\\-]{60,}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-OPENAI",
+      "title": "OpenAI API key",
+      "data_type": "secret.openai_key",
+      "pattern": "\\bsk-(?:proj-|svcacct-|admin-|None-)?[A-Za-z0-9_\\-]{20,}T3BlbkFJ[A-Za-z0-9_\\-]{20,}\\b|\\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_\\-]{40,}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-HF",
+      "title": "Hugging Face token",
+      "data_type": "secret.huggingface_token",
+      "pattern": "\\bhf_[A-Za-z0-9]{34,40}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-NPM",
+      "title": "npm access token",
+      "data_type": "secret.npm_token",
+      "pattern": "\\bnpm_[A-Za-z0-9]{36}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-PYPI",
+      "title": "PyPI upload token",
+      "data_type": "secret.pypi_token",
+      "pattern": "\\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\\-]{50,}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-SENDGRID",
+      "title": "SendGrid API key",
+      "data_type": "secret.sendgrid_key",
+      "pattern": "\\bSG\\.[A-Za-z0-9_\\-]{22}\\.[A-Za-z0-9_\\-]{43}\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-TWILIO",
+      "title": "Twilio API key",
+      "data_type": "secret.twilio_key",
+      "pattern": "\\bSK[0-9a-fA-F]{32}\\b",
+      "flags": "",
+      "severity": "medium",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-PRIVKEY",
+      "title": "Private key",
+      "data_type": "secret.private_key",
+      "pattern": "-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----",
+      "flags": "",
+      "severity": "critical",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-JWT",
+      "title": "JSON Web Token",
+      "data_type": "secret.jwt",
+      "pattern": "\\beyJ[A-Za-z0-9_\\-]{10,}\\.eyJ[A-Za-z0-9_\\-]{10,}\\.[A-Za-z0-9_\\-]{10,}\\b",
+      "flags": "",
+      "severity": "medium",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-CONNSTR",
+      "title": "Database URL with credentials",
+      "data_type": "secret.connection_string",
+      "pattern": "\\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\\+srv)?|redis|rediss|amqps?|mssql|sqlserver)://[^\\s:/@]{1,64}:([^\\s@/]{3,128})@[^\\s/]+",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 1,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-PASSWORD",
+      "title": "Hard-coded password or secret",
+      "data_type": "secret.password_assignment",
+      "pattern": "\\b(?:password|passwd|pwd|passphrase|secret|client_secret|api_?key|apikey|access_?token|auth_?token|private_?key)\\b[\\\"']?\\s*[:=]\\s*[\\\"']?([^\\s\\\"',;]{8,128})",
+      "flags": "i",
+      "severity": "high",
+      "validator": "entropy",
+      "group": 1,
+      "min_entropy": 3.0
+    },
+    {
+      "id": "DLP-BASIC-AUTH",
+      "title": "Credentials in URL",
+      "data_type": "secret.url_credentials",
+      "pattern": "\\bhttps?://[^\\s:/@]{1,64}:([^\\s@/]{3,128})@[^\\s/]+",
+      "flags": "",
+      "severity": "high",
+      "validator": null,
+      "group": 1,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-EMAIL",
+      "title": "Email address",
+      "data_type": "pii.email",
+      "pattern": "\\b[A-Za-z0-9._%+\\-]{1,64}@[A-Za-z0-9.\\-]{1,253}\\.[A-Za-z]{2,24}\\b",
+      "flags": "",
+      "severity": "low",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-SSN",
+      "title": "US Social Security number",
+      "data_type": "pii.us_ssn",
+      "pattern": "\\b(\\d{3})-(\\d{2})-(\\d{4})\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": "ssn",
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-CC",
+      "title": "Payment card number",
+      "data_type": "pii.payment_card",
+      "pattern": "\\b(?:\\d[ \\-]?){12,18}\\d\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": "luhn",
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-IBAN",
+      "title": "IBAN bank account",
+      "data_type": "pii.iban",
+      "pattern": "\\b[A-Z]{2}\\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\\b",
+      "flags": "",
+      "severity": "high",
+      "validator": "iban",
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-PHONE",
+      "title": "Phone number",
+      "data_type": "pii.phone",
+      "pattern": "(?<![\\w+])(?:\\+?1[ .\\-]?)?\\(?[2-9]\\d{2}\\)?[ .\\-]\\d{3}[ .\\-]\\d{4}\\b",
+      "flags": "",
+      "severity": "low",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-IPV4-PRIV",
+      "title": "Internal IP address",
+      "data_type": "infra.private_ip",
+      "pattern": "\\b(?:10\\.(?:\\d{1,3}\\.){2}\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}|172\\.(?:1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3})\\b",
+      "flags": "",
+      "severity": "info",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-CLASSIFIED",
+      "title": "Classification marking",
+      "data_type": "corp.classification_marking",
+      "pattern": "\\b(?:strictly\\s+confidential|internal\\s+use\\s+only|do\\s+not\\s+(?:distribute|forward)|attorney[- ]client\\s+privileged|privileged\\s+(?:and|&)\\s+confidential|trade\\s+secret|top\\s+secret|restricted\\s+data|NDA\\s+protected|company\\s+confidential)\\b",
+      "flags": "i",
+      "severity": "medium",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    },
+    {
+      "id": "DLP-CLASSIFIED-CAPS",
+      "title": "Classification banner",
+      "data_type": "corp.classification_marking",
+      "pattern": "\\b(?:CONFIDENTIAL|INTERNAL ONLY|PROPRIETARY|SECRET//[A-Z]+)\\b",
+      "flags": "",
+      "severity": "medium",
+      "validator": null,
+      "group": 0,
+      "min_entropy": 0.0
+    }
+  ],
+  "signatures": [
+    {
+      "id": "SIG-DAN-1",
+      "family": "DAN",
+      "grams": [
+        "are going to",
+        "be dan which",
+        "dan which stands",
+        "do anything now",
+        "for do anything",
+        "going to pretend",
+        "pretend to be",
+        "stands for do",
+        "to be dan",
+        "to pretend to",
+        "which stands for",
+        "you are going"
+      ]
+    },
+    {
+      "id": "SIG-DAN-2",
+      "family": "DAN",
+      "grams": [
+        "abide by the",
+        "ai and do",
+        "and do not",
+        "broken free of",
+        "by the rules",
+        "confines of ai",
+        "do not have",
+        "free of the",
+        "have broken free",
+        "have to abide",
+        "not have to",
+        "of ai and",
+        "of the typical",
+        "rules set for",
+        "set for them",
+        "the rules set",
+        "the typical confines",
+        "they have broken",
+        "to abide by",
+        "typical confines of"
+      ]
+    },
+    {
+      "id": "SIG-DAN-3",
+      "family": "DAN",
+      "grams": [
+        "and does not",
+        "any content policy",
+        "anything now and",
+        "can do anything",
+        "dan can do",
+        "do anything now",
+        "does not need",
+        "follow any content",
+        "need to follow",
+        "not need to",
+        "now and does",
+        "to follow any"
+      ]
+    },
+    {
+      "id": "SIG-DAN-4",
+      "family": "DAN",
+      "grams": [
+        "act as chatgpt",
+        "as chatgpt with",
+        "chatgpt with dan",
+        "dan mode enabled",
+        "now act as",
+        "will now act",
+        "with dan mode",
+        "you will now"
+      ]
+    },
+    {
+      "id": "SIG-DAN-5",
+      "family": "DAN",
+      "grams": [
+        "and you must",
+        "break character i",
+        "character and you",
+        "character i will",
+        "i will say",
+        "if you break",
+        "in character and",
+        "must correct yourself",
+        "say stay in",
+        "stay in character",
+        "will say stay",
+        "you break character",
+        "you must correct"
+      ]
+    },
+    {
+      "id": "SIG-DAN-6",
+      "family": "DAN",
+      "grams": [
+        "a token system",
+        "and you will",
+        "every time you",
+        "have a token",
+        "lose tokens every",
+        "system and you",
+        "time you refuse",
+        "token system and",
+        "tokens every time",
+        "will lose tokens",
+        "you have a",
+        "you will lose"
+      ]
+    },
+    {
+      "id": "SIG-DEV-1",
+      "family": "Developer Mode",
+      "grams": [
+        "act as chatgpt",
+        "are going to",
+        "as chatgpt with",
+        "chatgpt with developer",
+        "developer mode enabled",
+        "from now on",
+        "going to act",
+        "now on you",
+        "on you are",
+        "to act as",
+        "with developer mode",
+        "you are going"
+      ]
+    },
+    {
+      "id": "SIG-DEV-2",
+      "family": "Developer Mode",
+      "grams": [
+        "and one with",
+        "developer mode output",
+        "generate two responses",
+        "normal and one",
+        "one normal and",
+        "one with the",
+        "responses one normal",
+        "the developer mode",
+        "two responses one",
+        "will generate two",
+        "with the developer",
+        "you will generate"
+      ]
+    },
+    {
+      "id": "SIG-DEV-3",
+      "family": "Developer Mode",
+      "grams": [
+        "all of the",
+        "developer mode enabled",
+        "enabled ignores all",
+        "ignores all of",
+        "mode enabled ignores",
+        "of the content",
+        "the content policy"
+      ]
+    },
+    {
+      "id": "SIG-IMM-1",
+      "family": "Immersion",
+      "grams": [
+        "about to immerse",
+        "another ai model",
+        "are about to",
+        "immerse yourself into",
+        "into the role",
+        "of another ai",
+        "role of another",
+        "the role of",
+        "to immerse yourself",
+        "you are about",
+        "yourself into the"
+      ]
+    },
+    {
+      "id": "SIG-AIM-1",
+      "family": "AIM",
+      "grams": [
+        "aim stands for",
+        "always intelligent and",
+        "for always intelligent",
+        "intelligent and machiavellian",
+        "stands for always"
+      ]
+    },
+    {
+      "id": "SIG-AIM-2",
+      "family": "AIM",
+      "grams": [
+        "amoral chatbot that",
+        "an unfiltered and",
+        "and amoral chatbot",
+        "any ethical or",
+        "chatbot that does",
+        "does not have",
+        "ethical or moral",
+        "have any ethical",
+        "not have any",
+        "or moral guidelines",
+        "that does not",
+        "unfiltered and amoral"
+      ]
+    },
+    {
+      "id": "SIG-STAN-1",
+      "family": "STAN",
+      "grams": [
+        "for strive to",
+        "stan which stands",
+        "stands for strive",
+        "strive to avoid",
+        "to avoid norms",
+        "which stands for"
+      ]
+    },
+    {
+      "id": "SIG-DUDE-1",
+      "family": "DUDE",
+      "grams": [
+        "and everything at",
+        "anything and everything",
+        "at the same",
+        "can perform anything",
+        "dude can perform",
+        "everything at the",
+        "perform anything and",
+        "the same time"
+      ]
+    },
+    {
+      "id": "SIG-EVIL-1",
+      "family": "Evil Confidant",
+      "grams": [
+        "answers in the",
+        "are my evil",
+        "confidant giving me",
+        "evil trusted confidant",
+        "from now on",
+        "giving me answers",
+        "in the form",
+        "me answers in",
+        "my evil trusted",
+        "now on you",
+        "on you are",
+        "the form of",
+        "trusted confidant giving",
+        "you are my"
+      ]
+    },
+    {
+      "id": "SIG-GRAN-1",
+      "family": "Grandma exploit",
+      "grams": [
+        "act as my",
+        "as my deceased",
+        "deceased grandmother who",
+        "grandmother who used",
+        "my deceased grandmother",
+        "please act as",
+        "to tell me",
+        "used to tell",
+        "who used to"
+      ]
+    },
+    {
+      "id": "SIG-GRAN-2",
+      "family": "Grandma exploit",
+      "grams": [
+        "activation keys to",
+        "grandmother used to",
+        "keys to fall",
+        "me windows activation",
+        "my grandmother used",
+        "read me windows",
+        "to fall asleep",
+        "to read me",
+        "used to read",
+        "windows activation keys"
+      ]
+    },
+    {
+      "id": "SIG-OPP-1",
+      "family": "Opposite mode",
+      "grams": [
+        "of what you",
+        "opposite of what",
+        "respond with the",
+        "the opposite of",
+        "what you would",
+        "will respond with",
+        "with the opposite",
+        "would normally say",
+        "you will respond",
+        "you would normally"
+      ]
+    },
+    {
+      "id": "SIG-SBX-1",
+      "family": "Sandbox framing",
+      "grams": [
+        "a safe sandbox",
+        "consequences so the",
+        "do not apply",
+        "environment with no",
+        "is a safe",
+        "no real consequences",
+        "real consequences so",
+        "rules do not",
+        "safe sandbox environment",
+        "sandbox environment with",
+        "so the usual",
+        "the usual rules",
+        "this is a",
+        "usual rules do",
+        "with no real"
+      ]
+    },
+    {
+      "id": "SIG-POL-1",
+      "family": "Policy dismissal",
+      "grams": [
+        "applies to you",
+        "content policy no",
+        "longer applies to",
+        "no longer applies",
+        "openai content policy",
+        "policy no longer"
+      ]
+    },
+    {
+      "id": "SIG-POL-2",
+      "family": "Policy dismissal",
+      "grams": [
+        "any rules or",
+        "are no longer",
+        "bound by any",
+        "by any rules",
+        "longer bound by",
+        "no longer bound",
+        "rules or restrictions",
+        "you are no"
+      ]
+    },
+    {
+      "id": "SIG-FREE-1",
+      "family": "Liberation",
+      "grams": [
+        "a free unnamed",
+        "ai with no",
+        "are a free",
+        "can think freely",
+        "free unnamed ai",
+        "freely without censorship",
+        "no restrictions you",
+        "restrictions you can",
+        "think freely without",
+        "unnamed ai with",
+        "with no restrictions",
+        "you are a",
+        "you can think"
+      ]
+    },
+    {
+      "id": "SIG-NAME-1",
+      "family": "Persona rename",
+      "grams": [
+        "and you have",
+        "filters or limitations",
+        "have no filters",
+        "is and you",
+        "name is and",
+        "new name is",
+        "no filters or",
+        "you have no",
+        "your new name"
+      ]
+    },
+    {
+      "id": "SIG-HYP-1",
+      "family": "Hypothetical",
+      "grams": [
+        "a character planning",
+        "character planning to",
+        "describe a character",
+        "hypothetical response the",
+        "response the way",
+        "the way to",
+        "to describe a",
+        "way to describe"
+      ]
+    },
+    {
+      "id": "SIG-TRANS-1",
+      "family": "Translate-then-execute",
+      "grams": [
+        "and then follow",
+        "follow the instructions",
+        "following text and",
+        "instructions it contains",
+        "text and then",
+        "the following text",
+        "the instructions it",
+        "then follow the",
+        "translate the following"
+      ]
+    },
+    {
+      "id": "SIG-TERM-1",
+      "family": "Simulated system",
+      "grams": [
+        "an unrestricted terminal",
+        "any command without",
+        "are an unrestricted",
+        "command without warnings",
+        "executes any command",
+        "terminal that executes",
+        "that executes any",
+        "unrestricted terminal that",
+        "you are an"
+      ]
+    },
+    {
+      "id": "SIG-AUTH-1",
+      "family": "Authority claim",
+      "grams": [
+        "am authorizing you",
+        "am your developer",
+        "and i am",
+        "authorizing you to",
+        "bypass your safety",
+        "developer and i",
+        "i am authorizing",
+        "i am your",
+        "to bypass your",
+        "you to bypass",
+        "your developer and",
+        "your safety guidelines"
+      ]
+    },
+    {
+      "id": "SIG-AUTH-2",
+      "family": "Authority claim",
+      "grams": [
+        "administrator and overrides",
+        "all previous instructions",
+        "and overrides all",
+        "comes from the",
+        "from the system",
+        "message comes from",
+        "overrides all previous",
+        "system administrator and",
+        "the system administrator",
+        "this message comes"
+      ]
+    },
+    {
+      "id": "SIG-IPI-1",
+      "family": "Indirect injection",
+      "grams": [
+        "ai assistants reading",
+        "assistants reading this",
+        "ignore the user",
+        "must ignore the",
+        "page must ignore",
+        "reading this page",
+        "the user and",
+        "this page must",
+        "user and instead"
+      ]
+    },
+    {
+      "id": "SIG-IPI-2",
+      "family": "Indirect injection",
+      "grams": [
+        "document tell the",
+        "is safe and",
+        "it is safe",
+        "safe and recommend",
+        "summarizing this document",
+        "tell the user",
+        "that it is",
+        "the user that",
+        "this document tell",
+        "user that it",
+        "when summarizing this"
+      ]
+    },
+    {
+      "id": "SIG-IPI-3",
+      "family": "Indirect injection",
+      "grams": [
+        "an important message",
+        "from the user",
+        "important message from",
+        "is an important",
+        "is the owner",
+        "message from the",
+        "of this assistant",
+        "owner of this",
+        "the owner of",
+        "the user who",
+        "this is an",
+        "user who is",
+        "who is the"
+      ]
+    }
+  ],
+  "normalize": {
+    "zero_width": [
+      "​",
+      "‌",
+      "‍",
+      "⁠",
+      "⁡",
+      "⁢",
+      "⁣",
+      "⁤",
+      "﻿",
+      "᠎",
+      "­"
+    ],
+    "bidi": [
+      "‪",
+      "‫",
+      "‬",
+      "‭",
+      "‮",
+      "⁦",
+      "⁧",
+      "⁨",
+      "⁩",
+      "‎",
+      "‏"
+    ],
+    "confusables": {
+      "а": "a",
+      "в": "b",
+      "е": "e",
+      "ё": "e",
+      "к": "k",
+      "м": "m",
+      "н": "h",
+      "о": "o",
+      "р": "p",
+      "с": "c",
+      "т": "t",
+      "у": "y",
+      "х": "x",
+      "ѕ": "s",
+      "і": "i",
+      "ј": "j",
+      "ԁ": "d",
+      "ɡ": "g",
+      "А": "A",
+      "В": "B",
+      "Е": "E",
+      "К": "K",
+      "М": "M",
+      "Н": "H",
+      "О": "O",
+      "Р": "P",
+      "С": "C",
+      "Т": "T",
+      "Х": "X",
+      "І": "I",
+      "Ј": "J",
+      "Ѕ": "S",
+      "α": "a",
+      "ο": "o",
+      "ρ": "p",
+      "ν": "v",
+      "τ": "t",
+      "ι": "i",
+      "κ": "k",
+      "υ": "u",
+      "ε": "e",
+      "Α": "A",
+      "Β": "B",
+      "Ε": "E",
+      "Ζ": "Z",
+      "Η": "H",
+      "Ι": "I",
+      "Κ": "K",
+      "Μ": "M",
+      "Ν": "N",
+      "Ο": "O",
+      "Ρ": "P",
+      "Τ": "T",
+      "Υ": "Y",
+      "Χ": "X",
+      "ı": "i",
+      "ℓ": "l",
+      "ⅰ": "i",
+      "ⅴ": "v",
+      "ⅹ": "x"
+    }
+  },
+  "catalog": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "vendor": "OpenAI",
+      "category": "llm",
+      "domains": [
+        "api.openai.com",
+        "chatgpt.com",
+        "chat.openai.com",
+        "openai.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic Claude",
+      "vendor": "Anthropic",
+      "category": "llm",
+      "domains": [
+        "api.anthropic.com",
+        "claude.ai",
+        "console.anthropic.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "google-gemini",
+      "name": "Google Gemini",
+      "vendor": "Google",
+      "category": "llm",
+      "domains": [
+        "generativelanguage.googleapis.com",
+        "gemini.google.com",
+        "aistudio.google.com",
+        "makersuite.google.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "google-vertex",
+      "name": "Google Vertex AI",
+      "vendor": "Google",
+      "category": "llm",
+      "domains": [
+        "aiplatform.googleapis.com",
+        "us-central1-aiplatform.googleapis.com"
+      ],
+      "data_boundary": "configurable"
+    },
+    {
+      "id": "azure-openai",
+      "name": "Azure OpenAI",
+      "vendor": "Microsoft",
+      "category": "llm",
+      "domains": [
+        "openai.azure.com",
+        "cognitiveservices.azure.com"
+      ],
+      "data_boundary": "configurable"
+    },
+    {
+      "id": "aws-bedrock",
+      "name": "AWS Bedrock",
+      "vendor": "Amazon",
+      "category": "llm",
+      "domains": [
+        "bedrock-runtime.us-east-1.amazonaws.com",
+        "bedrock.us-east-1.amazonaws.com"
+      ],
+      "data_boundary": "configurable"
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral AI",
+      "vendor": "Mistral",
+      "category": "llm",
+      "domains": [
+        "api.mistral.ai",
+        "chat.mistral.ai"
+      ],
+      "data_boundary": "eu"
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere",
+      "vendor": "Cohere",
+      "category": "llm",
+      "domains": [
+        "api.cohere.ai",
+        "api.cohere.com",
+        "coral.cohere.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "vendor": "DeepSeek",
+      "category": "llm",
+      "domains": [
+        "api.deepseek.com",
+        "chat.deepseek.com"
+      ],
+      "data_boundary": "cn"
+    },
+    {
+      "id": "xai",
+      "name": "xAI Grok",
+      "vendor": "xAI",
+      "category": "llm",
+      "domains": [
+        "api.x.ai",
+        "grok.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "vendor": "Perplexity",
+      "category": "search",
+      "domains": [
+        "api.perplexity.ai",
+        "perplexity.ai",
+        "www.perplexity.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "vendor": "Groq",
+      "category": "llm",
+      "domains": [
+        "api.groq.com",
+        "console.groq.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "together",
+      "name": "Together AI",
+      "vendor": "Together",
+      "category": "llm",
+      "domains": [
+        "api.together.xyz",
+        "api.together.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "vendor": "OpenRouter",
+      "category": "llm-router",
+      "domains": [
+        "openrouter.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "vendor": "Fireworks",
+      "category": "llm",
+      "domains": [
+        "api.fireworks.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "vendor": "Replicate",
+      "category": "model-host",
+      "domains": [
+        "api.replicate.com",
+        "replicate.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "vendor": "Hugging Face",
+      "category": "model-host",
+      "domains": [
+        "huggingface.co",
+        "api-inference.huggingface.co",
+        "hf.co"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "vendor": "GitHub",
+      "category": "code-assistant",
+      "domains": [
+        "copilot-proxy.githubusercontent.com",
+        "api.githubcopilot.com",
+        "copilot-telemetry.githubusercontent.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "vendor": "Anysphere",
+      "category": "code-assistant",
+      "domains": [
+        "api2.cursor.sh",
+        "api3.cursor.sh",
+        "cursor.sh",
+        "api.cursor.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "codeium",
+      "name": "Codeium / Windsurf",
+      "vendor": "Codeium",
+      "category": "code-assistant",
+      "domains": [
+        "server.codeium.com",
+        "codeium.com",
+        "windsurf.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "tabnine",
+      "name": "Tabnine",
+      "vendor": "Tabnine",
+      "category": "code-assistant",
+      "domains": [
+        "api.tabnine.com",
+        "tabnine.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "copilot-microsoft",
+      "name": "Microsoft Copilot",
+      "vendor": "Microsoft",
+      "category": "assistant",
+      "domains": [
+        "copilot.microsoft.com",
+        "www.bing.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "character-ai",
+      "name": "Character.AI",
+      "vendor": "Character.AI",
+      "category": "companion",
+      "domains": [
+        "character.ai",
+        "beta.character.ai",
+        "plus.character.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "poe",
+      "name": "Poe",
+      "vendor": "Quora",
+      "category": "llm-aggregator",
+      "domains": [
+        "poe.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "elevenlabs",
+      "name": "ElevenLabs",
+      "vendor": "ElevenLabs",
+      "category": "voice",
+      "domains": [
+        "api.elevenlabs.io",
+        "elevenlabs.io"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "stability",
+      "name": "Stability AI",
+      "vendor": "Stability",
+      "category": "image",
+      "domains": [
+        "api.stability.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "midjourney",
+      "name": "Midjourney",
+      "vendor": "Midjourney",
+      "category": "image",
+      "domains": [
+        "midjourney.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "runway",
+      "name": "Runway",
+      "vendor": "Runway",
+      "category": "video",
+      "domains": [
+        "api.runwayml.com",
+        "runwayml.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "notion-ai",
+      "name": "Notion AI",
+      "vendor": "Notion",
+      "category": "productivity",
+      "domains": [
+        "api.notion.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "jasper",
+      "name": "Jasper",
+      "vendor": "Jasper",
+      "category": "writing",
+      "domains": [
+        "api.jasper.ai",
+        "app.jasper.ai"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "writer",
+      "name": "Writer",
+      "vendor": "Writer",
+      "category": "writing",
+      "domains": [
+        "api.writer.com",
+        "app.writer.com"
+      ],
+      "data_boundary": "us"
+    },
+    {
+      "id": "grammarly",
+      "name": "Grammarly",
+      "vendor": "Grammarly",
+      "category": "writing",
+      "domains": [
+        "api.grammarly.com",
+        "grammarly.com"
+      ],
+      "data_boundary": "us"
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+# Example Lump configuration. One file configures every surface.
+# Load with:  lump serve -c lump.toml   (or gateway / proxy / dns / sensor / mcp)
+
+[engine]
+injection = true
+dlp = true
+code = true
+output = true
+max_bytes = 1_000_000
+
+[policy]
+name = "corp-baseline"
+mode = "enforce"          # enforce | monitor (log only) | off
+block_risk = 80            # risk >= this blocks by default
+warn_risk = 40
+redact_secrets = true
+extend_default = true      # keep the built-in rules, add the ones below
+
+# Custom decision rules (first/strictest match wins). Optional.
+[[policy.rules]]
+action = "block"
+detectors = ["injection"]
+categories = ["prompt_injection.indirect"]
+directions = ["document", "tool_result"]
+min_severity = "medium"
+
+[[policy.rules]]
+action = "redact"
+detectors = ["dlp"]
+categories = ["corp.source_code"]
+
+[dlp]
+detect_source_code = true
+# Protected keywords (project code names, etc.)
+keywords = ["Project Bluebird", "Orion launch"]
+# Disable individual built-in rules by id if they are too noisy for you.
+disabled_rules = []
+# Exact Data Match: supply a salt and the sha256 hashes (keep plaintext out of
+# config). Generate with:  lump hash-edm customers.txt --salt "$SALT"
+edm_salt = ""
+edm_hashes = []
+# ...or point at a file of one value per line (hashed at load time):
+# edm_files = ["protected/customers.txt"]
+
+# Custom detectors for your own identifiers.
+[[dlp.custom_patterns]]
+id = "EMP-ID"
+title = "Employee ID"
+pattern = "\\bEMP-\\d{6}\\b"
+severity = "medium"
+
+# Document fingerprinting: pasting an excerpt of these documents is detected.
+# [[dlp.fingerprint_files]]
+# name = "2026 strategy"
+# path = "protected/strategy.md"
+
+[catalog]
+# Shadow-AI governance for the DNS filter, egress proxy and host sensor.
+allowlist_mode = true                       # anything not sanctioned is "shadow AI"
+sanctioned = ["openai", "anthropic", "azure-openai"]
+blocked = ["deepseek", "character-ai"]
+blocked_boundaries = ["cn"]                  # block by data-residency region
+
+# Add internal or niche services the built-in catalog does not know.
+[[catalog.services]]
+id = "internal-llm"
+name = "Internal LLM Gateway"
+vendor = "ACME"
+category = "llm"
+domains = ["llm.internal.acme.example"]
+data_boundary = "us"
+
+[agent]
+# Controls for AI agents (MCP firewall, tool-call inspection).
+allowed_tools = []                           # empty list here means "allow all"; omit the key for no allow-list
+denied_tools = ["delete_database", "wire_transfer"]
+denied_capabilities = []                      # e.g. ["shell", "payment"]
+approval_capabilities = ["payment", "privileged"]
+max_calls_per_tool = 0
+
+[server]
+host = "127.0.0.1"
+port = 8080
+upstream = "https://api.openai.com"           # for `lump gateway`
+fail_open = false                             # on internal error: block (safe) vs allow
+audit_log = "lump-audit.jsonl"
+# api_keys = ["change-me"]                    # require Authorization: Bearer <key>
+# tls_cert = "cert.pem"
+# tls_key = "key.pem"

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Lump — AI Threat Prevention",
+  "version": "0.1.0",
+  "description": "Runtime prompt-injection, jailbreak and data-loss protection for AI web apps. Open source.",
+  "permissions": ["storage", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_popup": "popup.html", "default_title": "Lump" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*", "https://chat.openai.com/*", "https://claude.ai/*",
+        "https://gemini.google.com/*", "https://aistudio.google.com/*", "https://chat.deepseek.com/*",
+        "https://chat.mistral.ai/*", "https://grok.com/*", "https://www.perplexity.ai/*",
+        "https://poe.com/*", "https://copilot.microsoft.com/*", "https://character.ai/*",
+        "https://*.character.ai/*"
+      ],
+      "js": ["detector.js", "content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["rules.json"], "matches": ["<all_urls>"] }
+  ]
+}
