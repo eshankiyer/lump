@@ -21,7 +21,6 @@ from ..config import LumpConfig
 from ..engine.engine import Engine
 from ..engine.types import Context
 
-
 # Obviously fake, structurally valid credentials, assembled at runtime so the
 # repository never contains a literal that looks like a live token.
 _FAKES = {
