@@ -24,12 +24,11 @@ dependencies = []
 
 [project.optional-dependencies]
 host = ["psutil>=5.9"]
-tls = ["cryptography>=42"]
 ml = ["onnxruntime>=1.17", "tokenizers>=0.15", "numpy>=1.24"]
 train = ["numpy>=1.24", "pyarrow>=14"]
 yaml = ["pyyaml>=6"]
-all = ["psutil>=5.9", "cryptography>=42", "pyyaml>=6", "onnxruntime>=1.17", "tokenizers>=0.15", "numpy>=1.24"]
-dev = ["pytest>=8", "ruff>=0.5", "psutil>=5.9", "cryptography>=42", "pyyaml>=6", "numpy>=1.24", "pyarrow>=14"]
+all = ["psutil>=5.9", "pyyaml>=6", "onnxruntime>=1.17", "tokenizers>=0.15", "numpy>=1.24"]
+dev = ["pytest>=8", "ruff>=0.5", "psutil>=5.9", "pyyaml>=6", "numpy>=1.24", "pyarrow>=14"]
 
 [project.scripts]
 lump = "lump.cli:main"

@@ -46,7 +46,7 @@ class MLSettings:
     critical: float | None = None
     explain: bool = True
     max_chars: int = 100_000  # per view; longer text is scored head + tail
-    transformer: bool = False  # optional ONNX transformer backend (lump[ml])
+    transformer: bool = False  # optional ONNX transformer backend (the "ml" extra)
     transformer_dir: str | None = None
     model: Model | None = None  # an already-loaded model (takes precedence over model_path)
 

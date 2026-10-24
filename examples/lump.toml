@@ -37,7 +37,7 @@ explain = true
 # warn = 0.80
 # block = 0.95
 # model_path = "models/my-retrained.lumpml"   # relative to this file
-# transformer = true                          # optional DeBERTa backend: pip install 'lump[ml]' && lump model pull
+# transformer = true                          # optional DeBERTa backend: pip install '.[ml]' && lump model pull
 
 [dlp]
 detect_source_code = true

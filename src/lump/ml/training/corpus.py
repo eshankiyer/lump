@@ -11,9 +11,11 @@ Steps, all deterministic for a given lockfile:
    their keys first, so any text that appears in an evaluation set is removed
    from the training pool. A key labelled attack by one source and benign by
    another is dropped as ambiguous.
-4. **Remove near-duplicates** of every evaluation text from the training pool
-   (MinHash over word 5-gram shingles, Jaccard >= 0.7) — exact dedup alone
-   misses templated variants.
+4. **Remove near-duplicates** of every out-of-distribution and reworded
+   evaluation text from the training pool (MinHash over word 5-gram shingles,
+   Jaccard >= 0.7, texts of five or more words) — exact dedup alone misses
+   templated variants. The in-distribution test split (step 5) comes from the
+   same pool and is only exact-deduplicated against train.
 5. **Split** training-role records by a hash of their key into train / val /
    in-distribution test (85 / 5 / 10).
 

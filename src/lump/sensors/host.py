@@ -15,7 +15,7 @@ Capabilities:
 * scan AI-generated artifacts (recently written scripts) with the code
   detector before they run.
 
-``psutil`` is an optional dependency (``pip install lump[host]``).
+``psutil`` is an optional dependency (the ``host`` extra).
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ class ReverseDnsCache:
 class HostSensor:
     def __init__(self, catalog: Catalog, auditor: Auditor, resolve_dns: bool = True):
         if not HAVE_PSUTIL:
-            raise RuntimeError("the host sensor requires psutil: pip install lump[host]")
+            raise RuntimeError("the host sensor requires psutil (the 'host' extra: pip install psutil)")
         self.catalog = catalog
         self.auditor = auditor
         self.resolve_dns = resolve_dns

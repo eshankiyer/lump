@@ -408,3 +408,21 @@ def test_many_decoy_layers_do_not_hide_the_payload_and_overflow_is_flagged():
     assert any(f.detector == "ml" and "base64" in f.title for f in v.findings)
     v = det.inspect(f"records: {decoys(200)} {payload}", Context(direction=Direction.DOCUMENT))
     assert any(f.rule_id == "OB-007" for f in v.findings) and v.action is Action.BLOCK
+
+
+def test_model_card_reproduce_line_uses_the_recorded_hyperparameters():
+    from lump.ml.fixture import tiny_model_bytes
+    from lump.ml.training.card import render
+
+    header = Model.from_bytes(tiny_model_bytes()).header
+    metric = {"n": 10, "recall": 0.5, "fpr": 0.1, "auc": 0.9}
+    row = {"name": "ood:x/y", "rules": metric, "ml_warn": metric, "ensemble": metric, "rules_doc": metric,
+           "ensemble_doc": metric, "ml_block": metric, "ensemble_doc_block": metric}
+    summary = {"bytes": 1000, "temperature": 1.0, "thresholds": {"warn": 0.5, "block": 0.88, "critical": 0.96},
+               "evaluation": [row]}
+    plain = render(summary, header)
+    assert "--hash-bits 12 --version test" in plain and "--feature-dropout" not in plain
+    summary["hyperparameters"] = {"hash_bits": 12, "epochs": 12, "weight_decay": 1e-6, "feature_dropout": 0.1}
+    tuned = render(summary, header)
+    assert "--hash-bits 12 --feature-dropout 0.1 --version test" in tuned
+    assert "block point (0.88)" in tuned and "critical point (0.96)" in tuned

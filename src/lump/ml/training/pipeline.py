@@ -185,7 +185,10 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
     out.write_bytes(blob)
     log(f"wrote {out} ({len(blob) / 1e6:.2f} MB)")
     summary = {"model": str(out), "bytes": len(blob), "thresholds": result["thresholds"],
-               "temperature": result["temperature"], "evaluation": [r.__dict__ for r in rows]}
+               "temperature": result["temperature"],
+               "hyperparameters": {"hash_bits": hash_bits, "epochs": epochs, "weight_decay": weight_decay,
+                                   "feature_dropout": feature_dropout},
+               "evaluation": [r.__dict__ for r in rows]}
     if compare_transformer:
         summary["transformer"] = compare_with_transformer(splits, rows, compare_transformer, log)
     if report:

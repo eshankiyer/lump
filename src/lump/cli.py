@@ -131,7 +131,7 @@ def cmd_sensor(args) -> int:
     from .server.audit import Auditor
 
     if not HAVE_PSUTIL:
-        print("error: the host sensor requires psutil (pip install 'lump[host]')", file=sys.stderr)
+        print("error: the host sensor requires psutil (the 'host' extra: pip install psutil)", file=sys.stderr)
         return 2
     cfg = _load_config(args)
     auditor = Auditor(cfg.server.audit_log)
@@ -217,7 +217,7 @@ def cmd_model(args) -> int:
 
         dest = transformer.pull(args.dir)
         print(f"transformer model ready in {dest}")
-        print("enable it with  [ml] transformer = true  in your config (needs: pip install 'lump[ml]')")
+        print("enable it with  [ml] transformer = true  in your config (needs the 'ml' extra: onnxruntime, tokenizers, numpy)")
         return 0
     settings = _load_config(args).engine.ml if getattr(args, "config", None) else None
     path = args.model or (settings.model_path if settings else None)
@@ -256,7 +256,7 @@ def cmd_train(args) -> int:
     try:
         from .ml.training.pipeline import run
     except ImportError as exc:
-        print(f"error: training needs extra packages: pip install 'lump[train]' ({exc})", file=sys.stderr)
+        print(f"error: training needs the 'train' extra (pip install numpy pyarrow): {exc}", file=sys.stderr)
         return 2
     summary = run(
         out=Path(args.out), report=Path(args.report) if args.report else None,

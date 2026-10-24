@@ -56,7 +56,7 @@ def load_file(path: str | Path) -> dict[str, Any]:
         try:
             import yaml  # type: ignore
         except ImportError as exc:  # pragma: no cover
-            raise RuntimeError("PyYAML is required for YAML config (pip install lump[yaml])") from exc
+            raise RuntimeError("PyYAML is required for YAML config (pip install pyyaml)") from exc
         return yaml.safe_load(text) or {}
     raise ValueError(f"unsupported config format: {suffix}")
 

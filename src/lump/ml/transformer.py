@@ -7,7 +7,7 @@ browser.
 
 * Model: ``protectai/deberta-v3-base-prompt-injection-v2`` (Apache-2.0),
   pinned to a commit, every file verified by sha256 after download.
-* Runtime: ``onnxruntime`` + ``tokenizers`` (``pip install 'lump[ml]'``) —
+* Runtime: ``onnxruntime`` + ``tokenizers`` (the ``ml`` extra) —
   no PyTorch.
 * Install: ``lump model pull`` (downloads into ``~/.cache/lump/models``).
 
@@ -105,7 +105,7 @@ class TransformerBackend:
             import onnxruntime as ort
             from tokenizers import Tokenizer
         except ImportError as exc:  # pragma: no cover - exercised only without the extra
-            raise RuntimeError("the transformer backend needs: pip install 'lump[ml]'") from exc
+            raise RuntimeError("the transformer backend needs the 'ml' extra: pip install onnxruntime tokenizers numpy") from exc
         dest = model_dir(base)
         if not available(base):
             raise RuntimeError(f"transformer model not found in {dest}; run `lump model pull`")
