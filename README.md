@@ -1,17 +1,16 @@
 # Lump
 
-**Open-source runtime AI threat prevention — for every layer, not just the browser.**
+**Open-source runtime AI threat prevention for every layer AI traffic crosses.**
 
-Lump inspects AI interactions as they happen and stops prompt injection,
-jailbreaks, data loss, malicious AI-generated code, tool-poisoning and
-shadow-AI — across the browser, the endpoint, the network, the API gateway and
-your AI agents. One detection engine, one policy model, one rule set, enforced
-everywhere.
+Lump inspects AI traffic as it happens and stops prompt injection, jailbreaks,
+data loss, malicious AI-generated code, tool poisoning and shadow AI in the
+browser, on the endpoint, on the network, at the API gateway and inside your
+agents. Every surface runs the same detection engine, policy and rule set.
 
 It is a from-scratch, Apache-2.0 alternative to closed "AI runtime security"
-products. No kernel driver, no LLM in the inspection path (so no token cost and
-no latency tax), no data leaving your network. The core is pure Python standard
-library; everything extra is an optional dependency.
+products. It needs no kernel driver and puts no LLM in the inspection path, so
+inspection costs no tokens, and no data leaves your network. The core is pure
+Python standard library; everything else is an optional dependency.
 
 ```
                           ┌──────────────────────────────────────────┐
@@ -28,47 +27,50 @@ library; everything extra is an optional dependency.
 
 ## Why Lump is different
 
-Most AI-security tools guard a single choke point — usually the browser, or a
-single model endpoint. An attacker just uses a different one. Lump secures
-**all networks and surfaces alike** with the same engine:
+Most AI-security tools guard one choke point, usually the browser or a single
+model endpoint, and an attacker simply uses another route. Lump secures all
+networks and surfaces alike with one engine:
 
 | Surface | What it protects | How |
 |---|---|---|
-| **LLM gateway** | Apps calling model APIs | Inspecting reverse proxy for OpenAI/Anthropic/Google schemas; blocks bad prompts before they leave and bad responses before they return |
-| **MCP firewall** | AI agents using tools | JSON-RPC guard: catches tool-poisoning in definitions, dangerous tool calls, and indirect injection in tool results |
-| **Browser extension** | Staff using AI web apps | Local prompt-DLP + indirect-injection/beacon defence on ChatGPT, Claude, Gemini, … (reuses the exact engine rules) |
-| **Endpoint sensor** | Any app on a host | Attributes every AI connection to its originating process; scans AI-written scripts — no kernel driver |
-| **DNS filter** | Whole network | Shadow-AI discovery and data-residency governance by hostname, agentless |
-| **Egress proxy** | Whole network | Sanction / block AI services at the connection level |
-| **Inspection API** | Anything else | `POST /v1/inspect` from any language, plus a live dashboard and Prometheus metrics |
+| LLM gateway | Apps calling model APIs | Inspecting reverse proxy for OpenAI/Anthropic/Google schemas; blocks bad prompts before they leave and bad responses before they return |
+| MCP firewall | AI agents using tools | JSON-RPC guard: catches tool-poisoning in definitions, dangerous tool calls, and indirect injection in tool results |
+| Browser extension | Staff using AI web apps | Local prompt-DLP + indirect-injection/beacon defence on ChatGPT, Claude, Gemini, … (reuses the exact engine rules) |
+| Endpoint sensor | Any app on a host | Attributes every AI connection to its originating process and scans AI-written scripts, without a kernel driver |
+| DNS filter | Whole network | Shadow-AI discovery and data-residency governance by hostname, agentless |
+| Egress proxy | Whole network | Sanction / block AI services at the connection level |
+| Inspection API | Anything else | `POST /v1/inspect` from any language, plus a live dashboard and Prometheus metrics |
 
-### More capable than the typical offering
+### What you get beyond a typical product
 
-- **Seven detector families, not one.** Prompt injection *and* jailbreaks *and*
-  a learned classifier *and* DLP *and* malicious-code *and* agentic/tool risk
-  *and* output handling.
-- **A learned classifier for reworded attacks.** Rules catch "ignore all
-  previous instructions"; the on-device model catches "kindly set aside
-  whatever guidance you were handed earlier". It runs in about a millisecond
-  in Python and in the browser from the same 1.6 MB file, scores every hidden
-  layer, and is trained only on vetted, pinned public data
-  ([docs/ml.md](docs/ml.md)).
-- **Deep de-obfuscation.** Invisible Unicode tag "ASCII smuggling", variation-
-  selector payloads, bidi overrides, homoglyphs, base64/hex/percent-encoded and
-  spaced/leet text are all unmasked and scanned — hiding an instruction from a
-  human is itself a signal.
-- **Indirect prompt injection** is treated as a first-class threat: content from
-  tool results, documents and web pages is untrusted by default and scored
-  higher than user-typed text.
-- **Enterprise DLP**: validated secrets/PII (Luhn, IBAN, SSN), exact-data-match
-  via salted hashes (plaintext never in config), and document fingerprinting.
-- **Agentic security** mapped to the OWASP Agentic Top-10, including MCP
+- Seven detector families: prompt injection, jailbreaks, a learned classifier,
+  DLP, malicious code, agentic/tool risk and output handling.
+- A learned classifier for reworded attacks. The rules catch "ignore all
+  previous instructions"; the on-device model also catches "kindly set aside
+  whatever guidance you were handed earlier". On six held-out datasets from
+  other authors, the rules alone catch 9–34% of attacks and the full engine
+  56–85%. The 1.6 MB model scores a prompt in about 0.3 ms and runs from the
+  same file in Python and the browser. On five of seven held-out sets it ranks
+  attacks better than a 184M-parameter transformer. It was trained only on
+  vetted, pinned public data. Its weak spot, ordinary sentences full of attack
+  words, is measured in the [model card](src/lump/data/models/MODEL_CARD.md)
+  and [docs/ml.md](docs/ml.md).
+- De-obfuscation: invisible Unicode tag "ASCII smuggling", variation-selector
+  payloads, bidi overrides, homoglyphs, base64/hex/percent-encoded and
+  spaced/leet text are unmasked before scanning. Hiding an instruction from a
+  human reader is itself a signal.
+- Indirect prompt injection gets the same attention as direct attacks: content
+  from tool results, documents and web pages is untrusted by default and scored
+  higher than what the user typed.
+- Enterprise DLP: validated secrets/PII (Luhn, IBAN, SSN), exact-data-match via
+  salted hashes (plaintext never in config), and document fingerprinting.
+- Agentic security mapped to the OWASP Agentic Top-10, including MCP
   tool-poisoning and excessive-agency controls.
-- **Framework-native findings.** Every finding carries MITRE ATLAS, MITRE
-  ATT&CK and OWASP LLM/Agentic Top-10 references.
-- **Shared rules.** `lump export-rules` ships the same patterns to the browser.
-- **Measurable.** `lump bench` reports precision/recall/F1 and latency on a
-  labelled corpus so you can tune and catch regressions.
+- Every finding carries MITRE ATLAS, MITRE ATT&CK and OWASP LLM/Agentic Top-10
+  references.
+- `lump export-rules` ships the same patterns to the browser.
+- `lump bench` reports precision/recall/F1 and latency on a labelled corpus, so
+  you can tune rules and catch regressions.
 
 ## Install
 
@@ -118,7 +120,7 @@ print(verdict.action.value, verdict.risk)   # -> block 98
 
 ## Configuration
 
-One TOML/JSON/YAML file configures every surface — policy, DLP, catalog and
+One TOML/JSON/YAML file configures every surface: policy, DLP, catalog and
 agent rules. See [`examples/lump.toml`](examples/lump.toml) and
 [`docs/configuration.md`](docs/configuration.md).
 
@@ -128,14 +130,14 @@ lump serve -c lump.toml
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — engine internals and the decision pipeline
-- [Threat coverage](docs/threats.md) — what Lump detects, mapped to ATLAS/OWASP
-- [Machine-learning detection](docs/ml.md) — the built-in classifier, training data, browser parity
-- [Model card](src/lump/data/models/MODEL_CARD.md) — per-dataset results, rules vs model vs both, and a transformer comparison
-- [Comparison & limitations](docs/comparison.md) — feature-by-feature vs. commercial offerings, and what Lump does not do yet
-- [Configuration](docs/configuration.md) — the full config schema
-- [Deployment](docs/deployment.md) — gateway, proxy, DNS, sensor, Docker/K8s
-- [Browser extension](extension/README.md) — install and the shared rule set
+- [Architecture](docs/architecture.md): engine internals and the decision pipeline
+- [Threat coverage](docs/threats.md): what Lump detects, mapped to ATLAS/OWASP
+- [Machine-learning detection](docs/ml.md): the built-in classifier, its training data, browser parity
+- [Model card](src/lump/data/models/MODEL_CARD.md): per-dataset results for rules, model and both, plus a transformer comparison
+- [Comparison & limitations](docs/comparison.md): feature by feature against commercial offerings, and what Lump does not do yet
+- [Configuration](docs/configuration.md): the full config schema
+- [Deployment](docs/deployment.md): gateway, proxy, DNS, sensor, Docker/K8s
+- [Browser extension](extension/README.md): install and the shared rule set
 
 ## Development
 
@@ -151,5 +153,5 @@ lump train --out injection-v1.lumpml --report report.json   # rebuild the model 
 
 ## License
 
-Apache-2.0. Contributions welcome — this is meant to be a community-owned
-baseline for AI runtime security.
+Apache-2.0. Contributions are welcome; the aim is a baseline for AI runtime
+security that the community owns.
