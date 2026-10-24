@@ -107,7 +107,7 @@ class ApiHandler(BaseHTTPRequestHandler):
             return self._send(200, html, "text/html; charset=utf-8",
                               {"Content-Security-Policy": csp, "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer"})
         if path == "/healthz":
-            return self._send(200, {"status": "ok", "version": "0.1.0"})
+            return self._send(200, {"status": "ok", "version": "0.1.0", "ml": self.engine.ml_status()})
         # Everything below exposes operational data: authenticate it.
         if not self._authorized():
             return self._send(401, {"error": "unauthorized"}, extra_headers={"WWW-Authenticate": "Bearer"})
@@ -168,9 +168,13 @@ class ApiHandler(BaseHTTPRequestHandler):
         ml = self.engine.ml
         if ml is None:
             return self._send(503, {"error": "ML detection is disabled or no model is installed"})
-        score = ml.model.score(text, explain=bool(data.get("explain", True)))
+        # Same bounds as Engine.inspect: max_bytes of input, then the ML budget.
+        truncated = len(text) > self.engine.config.max_bytes
+        text = text[: self.engine.config.max_bytes]
+        score = ml.model.score(text, explain=bool(data.get("explain", True)), limit=ml.settings.max_chars or None)
         self._send(200, {
             "model": f"{ml.model.name}@{ml.model.version}",
+            "truncated": truncated,
             "p_attack": round(score.p_attack, 6),
             "label": score.label,
             "probs": {k: round(v, 6) for k, v in score.probs.items()},

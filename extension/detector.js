@@ -159,8 +159,16 @@ const Lump = (() => {
     });
   }
 
-  // Same views (and order) as engine/normalize.normalize, minus the
-  // despaced / de-leet views the browser rule set does not use.
+  // "i g n o r e" / "i.g.n.o.r.e" and leetspeak (normalize._collapse_spaced /
+  // _deleet). \b is spelled out so it means what Python's Unicode \b means.
+  const W = "[\\p{L}\\p{N}_]", B = `(?:(?<=${W})(?!${W})|(?<!${W})(?=${W}))`;
+  const SPACED_RE = new RegExp(B + "(?:[A-Za-z][ .\\-_*]){4,}[A-Za-z]" + B, "gu");
+  const LEET_WORD_RE = new RegExp(B + "(?=[A-Za-z0-9@$]*[A-Za-z])(?=[A-Za-z0-9@$]*[0-9@$])[A-Za-z0-9@$]{3,}" + B, "gu");
+  const LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s" };
+  function collapseSpaced(t) { return t.replace(SPACED_RE, (m) => m.replace(/[ .\-_*]/g, "")); }
+  function deleet(t) { return t.replace(LEET_WORD_RE, (m) => m.replace(/[013457@$]/g, (c) => LEET[c])); }
+
+  // Same views, in the same order, as engine/normalize.normalize.
   function views(text) {
     const v = [["original", text]];
     const canon = canonicalize(text);
@@ -169,6 +177,10 @@ const Lump = (() => {
     if (tags) v.push(["unicode_tags", tags]);
     const vs = decodeVariationSelectors(text);
     if (vs) v.push(["variation_selectors", vs]);
+    const spaced = collapseSpaced(canon);
+    if (spaced !== canon) v.push(["despaced", spaced]);
+    const leet = deleet(canon);
+    if (leet !== canon) v.push(["deleet", leet]);
     for (const [kind, decoded] of decodeLayers(canon)) v.push([kind, canonicalize(decoded)]);
     if (/\brot[- ]?13\b/i.test(canon)) v.push(["rot13", rot13(canon)]);
     return v;
@@ -306,7 +318,8 @@ const Lump = (() => {
   // a LumpML model. Scored: the original, the homoglyph-folded text (when
   // look-alike letters are present) and every hidden layer, uncapped, so decoy
   // layers cannot push a payload out of view.
-  const ML_HIDDEN = new Set(["unicode_tags", "variation_selectors", "base64", "hex", "percent", "rot13"]);
+  const ML_HIDDEN = new Set(["unicode_tags", "variation_selectors", "despaced", "deleet", "base64", "hex", "percent", "rot13"]);
+  const VIEW_TITLES = { canonical: " (look-alike letters folded)", despaced: " (spaced-out letters joined)", deleet: " (leetspeak decoded)" };
   const ML_MAX_CHARS = 100000; // per view, head + tail (MLSettings.max_chars)
   function mlThresholds(th = {}) { // ml.detector.resolve_thresholds without overrides
     const warn = th.warn ?? 0.5;
@@ -336,8 +349,7 @@ const Lump = (() => {
     if (!sev) return null;
     const jb = (best.s.probs.jailbreak || 0) > (best.s.probs.injection || 0);
     const expl = model.explain(best.t, best.s.window, 6, ML_MAX_CHARS);
-    const where = best.label === "original" ? "" : best.label === "canonical" ? " (look-alike letters folded)"
-      : " (hidden in " + best.label.replace(/_/g, " ") + ")";
+    const where = best.label === "original" ? "" : VIEW_TITLES[best.label] || " (hidden in " + best.label.replace(/_/g, " ") + ")";
     return {
       detector: "ml", rule_id: jb ? "ML-JB" : "ML-PI",
       title: (jb ? "Learned classifier: jailbreak" : "Learned classifier: prompt injection") + where + " p=" + p.toFixed(2),
@@ -347,13 +359,13 @@ const Lump = (() => {
     };
   }
 
-  // Directions mirror engine.types.Direction. Untrusted = anything that is not
-  // the user's own input; the ML block tier applies only to third-party
-  // content the agent reads (as in the Python default policy).
-  const ML_BLOCK_DIRECTIONS = new Set(["tool_result", "document", "tool_definition"]);
+  // Directions mirror engine.types.Direction; trust defaults like
+  // engine.types.Context (only the user's own input is trusted).
+  const ML_BLOCK_DIRECTIONS = new Set(["input", "tool_result", "document", "tool_definition"]);
+  const SEV_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   function inspect(text, opts = {}) {
     const direction = opts.direction || (opts.untrusted ? "document" : "input");
-    const untrusted = direction !== "input";
+    const untrusted = opts.trusted === undefined ? direction !== "input" : !opts.trusted;
     const vs = views(text);
     const inj = opts.injection === false ? { findings: [], score: 0 } : inspectInjection(text, untrusted, vs);
     const dlp = opts.dlp === false ? [] : inspectDlp(text);
@@ -362,19 +374,21 @@ const Lump = (() => {
       try { const f = mlFinding(opts.model, text, vs); if (f) findings.push(f); } catch (e) { /* never break inspection */ }
     }
     const risk = score(findings);
+    const rulesAgree = findings.some((f) => f.detector === "injection" && SEV_RANK[f.severity] >= SEV_RANK.medium);
     let action = "allow";
     const bump = (a) => { if (ACTION_RANK[a] > ACTION_RANK[action]) action = a; };
     for (const f of findings) {
       if (f.severity === "critical") bump("block");
       if (f.detector === "injection" && (f.severity === "high") && (f.confidence >= 0.7)) bump("block");
       if (f.detector === "dlp" && (f.severity === "high" || f.severity === "critical")) bump("redact");
-      // Python default policy: ML warns at MEDIUM and blocks at HIGH only on
-      // tool results / documents / tool definitions; elsewhere (direct input,
-      // model output) it blocks only when the combined risk crosses 80 below.
+      // Python default policy: ML warns at MEDIUM; HIGH blocks for untrusted
+      // third-party content, and elsewhere only when an injection rule agrees.
       if (f.detector === "ml") bump("warn");
-      if (f.detector === "ml" && f.severity === "high" && ML_BLOCK_DIRECTIONS.has(direction)) bump("block");
+      if (f.detector === "ml" && f.severity === "high" && ((untrusted && ML_BLOCK_DIRECTIONS.has(direction)) || rulesAgree)) bump("block");
     }
-    if (risk >= 80) bump("block"); else if (risk >= 40) bump("warn");
+    // Risk fallback without the ML findings (Policy.fallback_excludes).
+    const fallback = score(findings.filter((f) => f.detector !== "ml"));
+    if (fallback >= 80) bump("block"); else if (fallback >= 40) bump("warn");
     return { action, risk, findings, direction };
   }
 

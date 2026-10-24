@@ -114,16 +114,21 @@
       if (verdict.action === "allow") continue;
       const top = verdict.findings[0] || {};
       report(verdict.action, verdict, "output");
-      if (/indirect|beacon|exfil|obfusc|\.ml$/i.test(top.category || "") || verdict.action === "block") {
+      if (config.mode === "monitor") continue; // record only, never touch the page
+      const beacon = verdict.findings.some((f) => /beacon|exfil/i.test(f.category || ""));
+      if (verdict.action === "block" || /indirect|beacon|exfil|obfusc/i.test(top.category || "")) {
         node.style.outline = "2px solid #f85149";
         node.title = "Lump: " + (top.title || "suspicious content") + " (risk " + verdict.risk + ")";
         toast("Suspicious AI response", top.title || "Possible indirect prompt injection", "#f85149");
       }
-      // Neutralise auto-loading image beacons.
-      node.querySelectorAll("img[src*='?'],img[src*='#']").forEach((img) => {
-        const svc = Lump.catalogLookup(new URL(img.src, location.href).hostname);
-        if (!svc) { img.dataset.lumpBlockedSrc = img.src; img.removeAttribute("src"); }
-      });
+      // Neutralise auto-loading image beacons (only when the response looks
+      // like an exfiltration attempt, not on every warning).
+      if (verdict.action === "block" || beacon) {
+        node.querySelectorAll("img[src*='?'],img[src*='#']").forEach((img) => {
+          const svc = Lump.catalogLookup(new URL(img.src, location.href).hostname);
+          if (!svc) { img.dataset.lumpBlockedSrc = img.src; img.removeAttribute("src"); }
+        });
+      }
     }
   }
   const mo = new MutationObserver(() => { clearTimeout(window.__lumpT); window.__lumpT = setTimeout(scanResponses, 400); });

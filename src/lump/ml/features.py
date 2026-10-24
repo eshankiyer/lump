@@ -180,14 +180,15 @@ def hash_features(grams: list[str], cfg: FeatureConfig) -> dict[int, float]:
 def windows(norm: str, cfg: FeatureConfig) -> list[str]:
     """Split long normalised text into overlapping windows (code-point based)."""
 
-    chars = list(norm)
-    if len(chars) <= cfg.max_chars:
+    # Python str indexing is by code point already (like Array.from in JS).
+    n = len(norm)
+    if n <= cfg.max_chars:
         return [norm]
     out = []
     start = 0
-    while start < len(chars):
-        out.append("".join(chars[start : start + cfg.max_chars]))
-        if start + cfg.max_chars >= len(chars):
+    while start < n:
+        out.append(norm[start : start + cfg.max_chars])
+        if start + cfg.max_chars >= n:
             break
         start += cfg.window_stride
     return out

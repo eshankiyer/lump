@@ -66,7 +66,7 @@ def build(data: dict[str, Any], base_dir: Path | None = None) -> LumpConfig:
     cfg = LumpConfig(raw=data)
 
     _build_dlp(data.get("dlp", {}), cfg, base_dir)
-    cfg.engine = _build_engine(data.get("engine", {}), cfg.engine.dlp, data.get("ml", {}))
+    cfg.engine = _build_engine(data.get("engine", {}), cfg.engine.dlp, data.get("ml", {}), base_dir)
     cfg.policy = _build_policy(data.get("policy", {}))
     _build_catalog(data.get("catalog", {}), cfg.catalog)
     cfg.agent_policy = _build_agent_policy(data.get("agent", {}))
@@ -83,7 +83,7 @@ def load(path: str | Path | None) -> LumpConfig:
 
 # -- section builders ------------------------------------------------------
 
-def _build_engine(data: dict, dlp: DlpConfig, ml: dict | None = None) -> EngineConfig:
+def _build_engine(data: dict, dlp: DlpConfig, ml: dict | None = None, base_dir: Path | None = None) -> EngineConfig:
     return EngineConfig(
         dlp=dlp,
         enable_injection=data.get("injection", True),
@@ -92,11 +92,22 @@ def _build_engine(data: dict, dlp: DlpConfig, ml: dict | None = None) -> EngineC
         enable_output=data.get("output", True),
         load_plugins=data.get("plugins", True),
         max_bytes=int(data.get("max_bytes", 1_000_000)),
-        ml=_build_ml(ml or {}),
+        ml=_build_ml(ml or {}, base_dir),
     )
 
 
-def _build_ml(data: dict) -> MLSettings:
+def _relative_path(value, base_dir: Path | None) -> str | None:
+    """Resolve a path from the config against the config file's directory."""
+
+    if not value:
+        return None
+    p = Path(str(value)).expanduser()
+    if not p.is_absolute() and base_dir is not None:
+        p = base_dir / p
+    return str(p)
+
+
+def _build_ml(data: dict, base_dir: Path | None = None) -> MLSettings:
     def opt_float(key):
         # TOML has no null: absent or non-positive means "use the model's own operating point".
         value = data.get(key)
@@ -116,14 +127,14 @@ def _build_ml(data: dict) -> MLSettings:
         raise ValueError("[ml] max_chars must be at least 2000")
     return MLSettings(
         enabled=bool(data.get("enabled", True)),
-        model_path=data.get("model_path"),
+        model_path=_relative_path(data.get("model_path"), base_dir),
         warn=warn,
         block=block,
         critical=critical,
         explain=bool(data.get("explain", True)),
         max_chars=max_chars,
         transformer=bool(data.get("transformer", False)),
-        transformer_dir=data.get("transformer_dir"),
+        transformer_dir=_relative_path(data.get("transformer_dir"), base_dir),
     )
 
 
@@ -174,20 +185,26 @@ def _build_policy(data: dict) -> Policy:
                 directions=tuple(Direction.parse(d) for d in r.get("directions", ())),
                 min_confidence=float(r.get("min_confidence", 0.0)),
                 min_risk=int(r.get("min_risk", 0)),
+                untrusted=r.get("untrusted"),
+                requires=tuple(r.get("requires", ())),
             )
         )
     if data.get("extend_default", True):
         # Keep the built-in rules and add the custom ones (custom first so they
         # can tighten; the strictest match wins regardless of order).
         rules = rules + default_policy().rules
+    mode = data.get("mode", "enforce")
+    if mode not in ("enforce", "monitor", "off"):
+        raise ValueError(f"[policy] mode must be enforce, monitor or off, got {mode!r}")
     return Policy(
         name=data.get("name", "custom"),
-        mode=data.get("mode", "enforce"),
+        mode=mode,
         rules=rules,
         block_risk=int(data.get("block_risk", 80)),
         warn_risk=int(data.get("warn_risk", 40)),
         redact_secrets=data.get("redact_secrets", True),
         default_action=Action.parse(data.get("default_action", "allow")),
+        fallback_excludes=tuple(data.get("fallback_excludes", ("ml",))),
     )
 
 

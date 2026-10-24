@@ -11,6 +11,9 @@ browser.
   no PyTorch.
 * Install: ``lump model pull`` (downloads into ``~/.cache/lump/models``).
 
+Long text is scored in overlapping windows (the model itself reads at most
+512 tokens), keeping head and tail windows within a budget.
+
 Known weakness, measured in our evaluation: it over-triggers on benign text
 containing override-like phrasing (e.g. "please ignore the typos in my
 previous email"), which is why its findings feed the same risk-weighted
@@ -48,24 +51,38 @@ def _sha256(path: Path) -> str:
 
 
 def pull(base: str | None = None, log=print) -> Path:
-    """Download and verify the pinned files. Idempotent."""
+    """Download and verify the pinned files. Idempotent.
+
+    Downloads go to a fresh, exclusively created temporary file in the target
+    directory (never a predictable path that could be pre-planted as a
+    symlink) and are moved into place only after the sha256 matches.
+    """
+
+    import shutil
+    import tempfile
 
     dest = model_dir(base)
-    dest.mkdir(parents=True, exist_ok=True)
+    dest.mkdir(parents=True, exist_ok=True, mode=0o700)
     for name, (remote, digest) in FILES.items():
         path = dest / name
-        if path.exists() and _sha256(path) == digest:
+        if path.is_file() and not path.is_symlink() and _sha256(path) == digest:
             log(f"  {name}: present, verified")
             continue
         url = f"https://huggingface.co/{MODEL_ID}/resolve/{REVISION}/{remote}"
         log(f"  downloading {name} from {MODEL_ID}@{REVISION[:12]} ...")
-        tmp = path.with_suffix(path.suffix + ".part")
-        urllib.request.urlretrieve(url, tmp)  # noqa: S310 - pinned https URL, verified below
-        got = _sha256(tmp)
-        if got != digest:
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{name}.", dir=dest)
+        tmp = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "wb") as out, urllib.request.urlopen(url) as resp:  # noqa: S310 - pinned https URL
+                shutil.copyfileobj(resp, out, 1 << 20)
+            got = _sha256(tmp)
+            if got != digest:
+                raise RuntimeError(f"{name}: sha256 {got} does not match the pinned {digest}")
+            if path.is_symlink():
+                path.unlink()
+            tmp.replace(path)
+        finally:
             tmp.unlink(missing_ok=True)
-            raise RuntimeError(f"{name}: sha256 {got} does not match the pinned {digest}")
-        tmp.replace(path)
         log(f"  {name}: verified")
     return dest
 
@@ -81,7 +98,8 @@ class TransformerBackend:
     model_id = f"{MODEL_ID}@{REVISION[:12]}"
 
     def __init__(self, base: str | None = None, threads: int = 2, max_length: int = 512,
-                 thresholds: dict | None = None, verify: bool = True):
+                 thresholds: dict | None = None, verify: bool = True, window_chars: int = 1500, stride_chars: int = 1200,
+                 max_windows: int = 32):
         try:
             import numpy as np
             import onnxruntime as ort
@@ -91,18 +109,23 @@ class TransformerBackend:
         dest = model_dir(base)
         if not available(base):
             raise RuntimeError(f"transformer model not found in {dest}; run `lump model pull`")
+        # Read each file once and build the runtime from those exact bytes, so
+        # what was verified is what runs (no check-then-reopen window).
+        blobs = {name: (dest / name).read_bytes() for name in FILES}
         if verify:
             for name, (_, digest) in FILES.items():
-                if _sha256(dest / name) != digest:
+                if hashlib.sha256(blobs[name]).hexdigest() != digest:
                     raise RuntimeError(f"{name} in {dest} failed sha256 verification; re-run `lump model pull`")
         self._np = np
-        self.tokenizer = Tokenizer.from_file(str(dest / "tokenizer.json"))
+        self.tokenizer = Tokenizer.from_str(blobs["tokenizer.json"].decode("utf-8"))
         self.tokenizer.enable_truncation(max_length=max_length)
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = threads
-        self.session = ort.InferenceSession(str(dest / "model.onnx"), opts, providers=["CPUExecutionProvider"])
+        self.session = ort.InferenceSession(blobs["model.onnx"], opts, providers=["CPUExecutionProvider"])
+        del blobs
         self._inputs = {i.name for i in self.session.get_inputs()}
         self.thresholds = dict(DEFAULT_THRESHOLDS, **(thresholds or {}))
+        self.window_chars, self.stride_chars, self.max_windows = window_chars, stride_chars, max_windows
 
     def score_batch(self, texts: list[str]) -> list[float]:
         np = self._np
@@ -124,5 +147,20 @@ class TransformerBackend:
         p /= p.sum(axis=1, keepdims=True)
         return [float(x) for x in p[:, 1]]  # id2label: {0: SAFE, 1: INJECTION}
 
+    def windows(self, text: str) -> list[str]:
+        """Overlapping character windows (each well under 512 tokens), so text
+        after the first ~2 KB is still seen. Long text keeps head and tail
+        windows within ``max_windows``."""
+
+        # Lone surrogates (valid in JSON escapes) make the Rust tokenizer raise.
+        text = text.encode("utf-8", "replace").decode("utf-8")
+        if len(text) <= self.window_chars:
+            return [text]
+        starts = list(range(0, len(text) - self.window_chars + self.stride_chars, self.stride_chars))
+        if len(starts) > self.max_windows:
+            half = self.max_windows // 2
+            starts = starts[:half] + starts[-half:]
+        return [text[i : i + self.window_chars] for i in starts]
+
     def score(self, text: str) -> float:
-        return self.score_batch([text])[0]
+        return max(self.score_batch(self.windows(text)), default=0.0)

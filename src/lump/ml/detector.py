@@ -12,8 +12,9 @@ positive rates on held-out benign data:
 * ``critical`` (≈0.1% FPR) -> CRITICAL
 
 Hidden payloads recovered by the normaliser (Unicode-tag smuggling, base64,
-hex ...) are all scored, as is the homoglyph-folded text, so encoding an
-attack or swapping in look-alike letters does not hide it from the model.
+hex ...) are all scored, as are the homoglyph-folded, de-spaced and de-leeted
+forms, so encoding an attack, swapping in look-alike letters, spacing it out
+or writing it in leetspeak does not hide it from the model.
 Very long text is scored within a budget (head and tail, see
 :func:`lump.ml.features.clip`); the rules still scan all of it.
 """
@@ -26,12 +27,14 @@ from ..engine.normalize import Normalized
 from ..engine.types import Context, Finding, Severity
 from .model import Model
 
-_HIDDEN_VIEWS = ("unicode_tags", "variation_selectors", "base64", "hex", "percent", "rot13")
+# Recovered layers and de-obfuscated forms the model scores besides the original.
+_HIDDEN_VIEWS = ("unicode_tags", "variation_selectors", "despaced", "deleet", "base64", "hex", "percent", "rot13")
 _REFS_INJECTION = ("AML.T0051",)
 _REFS_JAILBREAK = ("AML.T0054",)
 
 
-_VIEW_TITLES = {"canonical": " (look-alike letters folded)"}
+_VIEW_TITLES = {"canonical": " (look-alike letters folded)", "despaced": " (spaced-out letters joined)",
+                "deleet": " (leetspeak decoded)"}
 
 
 @dataclass
@@ -68,10 +71,10 @@ def resolve_thresholds(model_thresholds: dict, settings: MLSettings | None = Non
 class MLDetector:
     name = "ml"
 
-    def __init__(self, model: Model, settings: MLSettings | None = None, transformer=None):
-        self.model = model
+    def __init__(self, model: Model | None, settings: MLSettings | None = None, transformer=None):
+        self.model = model  # None: only the optional transformer runs
         self.settings = settings or MLSettings()
-        th = resolve_thresholds(model.thresholds, self.settings)
+        th = resolve_thresholds(model.thresholds if model else {}, self.settings)
         self.warn, self.block, self.critical = th["warn"], th["block"], th["critical"]
         self.transformer = transformer
 
@@ -87,9 +90,9 @@ class MLDetector:
     @staticmethod
     def views(norm: Normalized) -> list[tuple[str, str]]:
         """The texts the model scores: the original, the homoglyph-folded form
-        (only when look-alike letters are present) and every hidden layer the
-        normaliser recovered. No count cap: decoy layers placed in front of a
-        payload must not push it out of view."""
+        (only when look-alike letters are present), the de-spaced / de-leeted
+        forms and every hidden layer the normaliser recovered. No count cap:
+        decoy layers placed in front of a payload must not push it out of view."""
 
         out = [("original", norm.original)]
         seen = {norm.original}
@@ -105,7 +108,7 @@ class MLDetector:
     def detect(self, norm: Normalized, ctx: Context) -> list[Finding]:
         best = None
         limit = self.settings.max_chars or None
-        for label, text in self.views(norm):
+        for label, text in self.views(norm) if self.model else ():
             if not text.strip():
                 continue
             score = self.model.score(text, limit=limit)

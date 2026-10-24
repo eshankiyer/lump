@@ -33,9 +33,19 @@ class Rule:
     directions: tuple[Direction, ...] = ()  # empty = any
     min_confidence: float = 0.0
     min_risk: int = 0
+    untrusted: bool | None = None  # None = either; True/False = only when ctx.untrusted is that
+    # Other detectors that must also have a MEDIUM+ finding in the same
+    # inspection ("block when the rules agree").
+    requires: tuple[str, ...] = ()
 
-    def matches(self, finding: Finding, ctx: Context, risk: int) -> bool:
+    def matches(self, finding: Finding, ctx: Context, risk: int, findings: list[Finding] | None = None) -> bool:
         if finding.severity < self.min_severity:
+            return False
+        if self.untrusted is not None and ctx.untrusted != self.untrusted:
+            return False
+        if self.requires and not any(
+            f.detector in self.requires and f.severity >= Severity.MEDIUM for f in (findings or ())
+        ):
             return False
         if self.detectors and finding.detector not in self.detectors:
             return False
@@ -59,6 +69,11 @@ class Policy:
     warn_risk: int = 40
     redact_secrets: bool = True  # auto-redact DLP findings flagged redactable
     default_action: Action = Action.ALLOW
+    # Detectors whose findings do not count towards the risk-threshold
+    # fallback. The learned classifier's decisions are governed only by its
+    # explicit rules, so an unrelated DLP hit (or a second ML backend) cannot
+    # turn an ML warning into a block. Its findings still count in ``risk``.
+    fallback_excludes: tuple[str, ...] = ("ml",)
 
     def score(self, findings: list[Finding]) -> int:
         """Combine findings into a 0-100 risk score (saturating noisy-OR)."""
@@ -78,12 +93,13 @@ class Policy:
         # Explicit rules first.
         for rule in self.rules:
             for f in findings:
-                if rule.matches(f, ctx, risk) and rule.action.rank > best.rank:
+                if rule.matches(f, ctx, risk, findings) and rule.action.rank > best.rank:
                     best = rule.action
         # Threshold fallback.
-        if risk >= self.block_risk and best.rank < Action.BLOCK.rank:
+        fallback = self.score([f for f in findings if f.detector not in self.fallback_excludes])
+        if fallback >= self.block_risk and best.rank < Action.BLOCK.rank:
             best = Action.BLOCK
-        elif risk >= self.warn_risk and best.rank < Action.WARN.rank:
+        elif fallback >= self.warn_risk and best.rank < Action.WARN.rank:
             best = Action.WARN
         return best
 
@@ -91,11 +107,20 @@ class Policy:
         risk = self.score(findings)
         action = self.decide(findings, ctx)
         reasons = _reasons(findings)
-        if self.mode == "monitor" and action is Action.BLOCK:
-            # Monitor mode downgrades a block to a warning but records intent.
-            reasons.insert(0, "monitor mode: would block")
+        if self.mode == "off":
+            # Findings are still reported; nothing is enforced or rewritten.
+            if action is not Action.ALLOW:
+                reasons.insert(0, f"policy off: would {action.value}")
+            action = Action.ALLOW
+        elif self.mode == "monitor" and action in (Action.BLOCK, Action.REDACT):
+            # Monitor mode never interferes (no block, no rewrite) but records intent.
+            reasons.insert(0, f"monitor mode: would {action.value}")
             action = Action.WARN
         return Verdict(action=action, risk=risk, findings=findings, reasons=reasons, policy=self.name, mode=self.mode)
+
+    @property
+    def enforcing(self) -> bool:
+        return self.mode not in ("monitor", "off")
 
 
 def _reasons(findings: list[Finding]) -> list[str]:
@@ -133,16 +158,21 @@ def default_policy() -> Policy:
             Rule(Action.WARN, detectors=("injection",), min_severity=Severity.MEDIUM),
             # Learned classifier. Severity encodes the model's own operating
             # points (MEDIUM ~2% FPR, HIGH ~0.5%, CRITICAL ~0.1%; CRITICAL is
-            # covered by the first rule). On untrusted content a HIGH score
-            # blocks on its own; on direct user input it warns, and blocks
-            # when the rules agree (the combined risk crosses block_risk).
+            # covered by the first rule). A HIGH score blocks on its own for
+            # untrusted third-party content (documents, tool results, tool
+            # definitions, or input explicitly marked untrusted); on trusted
+            # input and on model output it warns, and blocks only when an
+            # injection rule also fired. ML findings are left out of the
+            # risk-threshold fallback (see Policy.fallback_excludes).
             Rule(Action.WARN, detectors=("ml",), min_severity=Severity.MEDIUM),
             Rule(
                 Action.BLOCK,
                 detectors=("ml",),
                 min_severity=Severity.HIGH,
-                directions=(Direction.TOOL_RESULT, Direction.DOCUMENT, Direction.TOOL_DEFINITION),
+                directions=(Direction.INPUT, Direction.TOOL_RESULT, Direction.DOCUMENT, Direction.TOOL_DEFINITION),
+                untrusted=True,
             ),
+            Rule(Action.BLOCK, detectors=("ml",), min_severity=Severity.HIGH, requires=("injection",)),
             # Secrets and high-value PII in outbound content are redacted.
             Rule(Action.REDACT, detectors=("dlp",), min_severity=Severity.HIGH),
             Rule(Action.REDACT, detectors=("dlp",), categories=("pii.payment_card", "pii.us_ssn", "pii.iban")),

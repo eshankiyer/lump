@@ -209,7 +209,7 @@ def cmd_hash_edm(args) -> int:
 
 
 def cmd_model(args) -> int:
-    from .ml.detector import resolve_thresholds
+    from .ml.detector import MLSettings, resolve_thresholds
     from .ml.model import Model, ModelError, default_model
 
     if args.model_cmd == "pull":
@@ -219,8 +219,10 @@ def cmd_model(args) -> int:
         print(f"transformer model ready in {dest}")
         print("enable it with  [ml] transformer = true  in your config (needs: pip install 'lump[ml]')")
         return 0
+    settings = _load_config(args).engine.ml if getattr(args, "config", None) else None
+    path = args.model or (settings.model_path if settings else None)
     try:
-        model = Model.load(args.model) if args.model else default_model()
+        model = Model.load(path) if path else default_model()
     except (OSError, ModelError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -231,16 +233,19 @@ def cmd_model(args) -> int:
         print(json.dumps(model.info(), indent=2))
         return 0
     text = " ".join(args.text) if args.text else sys.stdin.read()
-    score = model.score(text, explain=True)
-    th = resolve_thresholds(model.thresholds)  # the model's own operating points, as the engine resolves them
-    level = ("critical" if score.p_attack >= th["critical"] else "block" if score.p_attack >= th["block"]
-             else "warn" if score.p_attack >= th["warn"] else "allow")
+    limit = settings.max_chars if settings else None
+    score = model.score(text, explain=True, limit=limit or MLSettings().max_chars)
+    th = resolve_thresholds(model.thresholds, settings)  # as the engine resolves them, [ml] overrides included
+    p = score.p_attack
+    level = "critical" if p >= th["critical"] else "high" if p >= th["block"] else "medium" if p >= th["warn"] else "none"
+    meaning = {"critical": "blocks everywhere", "high": "blocks untrusted content; warns on your own input",
+               "medium": "warns", "none": "no finding"}[level]
     if args.json:
-        print(json.dumps({"p_attack": round(score.p_attack, 6), "label": score.label, "level": level,
+        print(json.dumps({"p_attack": round(p, 6), "label": score.label, "level": level, "thresholds": th,
                           "probs": {k: round(v, 6) for k, v in score.probs.items()},
                           "windows": score.windows, "explanation": score.explanation}, indent=2))
     else:
-        print(f"p(attack)={score.p_attack:.4f}  -> {level}   ({model.name}@{model.version}, {score.windows} window(s))")
+        print(f"p(attack)={p:.4f}  -> {level} ({meaning})   ({model.name}@{model.version}, {score.windows} window(s))")
         print("  " + "  ".join(f"{k}={v:.3f}" for k, v in score.probs.items()))
         if score.explanation:
             print("  top features: " + ", ".join(f"'{g}' (+{w:.2f})" for g, w in score.explanation))
@@ -351,6 +356,8 @@ def build_parser() -> argparse.ArgumentParser:
     ms.add_argument("text", nargs="*", help="text to score (default: stdin)")
     ms.add_argument("--model", help="path to a .lumpml file (default: bundled)")
     ms.add_argument("--json", action="store_true")
+    for sp in (ms, mi):
+        sp.add_argument("-c", "--config", help="config file: its [ml] model_path and thresholds apply")
     mp = msub.add_parser("pull", help="download + verify the optional DeBERTa transformer (~740 MB)")
     mp.add_argument("--dir", help="cache directory (default: ~/.cache/lump)")
     md.set_defaults(func=cmd_model)
@@ -372,8 +379,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    import os
+
+    from .ml.model import ModelError
+
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (ModelError, ValueError) as exc:  # bad config or model: a message, not a traceback
+        if os.environ.get("LUMP_DEBUG"):
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

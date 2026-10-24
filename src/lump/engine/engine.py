@@ -18,6 +18,7 @@ discovered and run automatically.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -34,12 +35,15 @@ from .types import Action, Context, Direction, Finding, Severity, Verdict
 
 # Which detectors run for each direction. DLP runs everywhere (data can leak in
 # any direction); injection runs on anything a model will read as instructions.
+_log = logging.getLogger("lump")
+
 _INJECTION_DIRECTIONS = {
     Direction.INPUT,
     Direction.DOCUMENT,
     Direction.TOOL_RESULT,
     Direction.TOOL_DEFINITION,
     Direction.OUTPUT,
+    Direction.TOOL_CALL,  # arguments, as in inspect_tool_call
 }
 _OUTPUT_DIRECTIONS = {Direction.OUTPUT, Direction.TOOL_RESULT, Direction.DOCUMENT}
 _CODE_DIRECTIONS = {Direction.OUTPUT, Direction.TOOL_CALL, Direction.ARTIFACT, Direction.TOOL_RESULT}
@@ -69,24 +73,51 @@ class Engine:
         self.ml = self._load_ml(self.config.ml)
         self.plugins = list(self._load_plugins()) if self.config.load_plugins else []
 
-    @staticmethod
-    def _load_ml(settings: MLSettings) -> MLDetector | None:
+    def _load_ml(self, settings: MLSettings) -> MLDetector | None:
+        """Load the learned classifier(s).
+
+        An explicitly configured model or transformer that cannot be loaded is
+        an error (the operator asked for it). A missing or damaged *bundled*
+        model disables the built-in classifier with a logged warning, visible
+        in :meth:`ml_status` and ``/healthz``, instead of failing silently.
+        """
+
+        self._ml_error: str | None = None
         if not settings.enabled:
             return None
-        from ..ml.model import Model, default_model
+        from ..ml.model import Model, ModelError, default_model
 
         if settings.model is not None:
             model = settings.model
+        elif settings.model_path:
+            try:
+                model = Model.load(settings.model_path)
+            except OSError as exc:
+                raise ModelError(f"[ml] model_path {settings.model_path}: {exc.strerror or exc}") from exc
         else:
-            model = Model.load(settings.model_path) if settings.model_path else default_model()
-        if model is None:
-            return None
+            model = default_model()
+            if model is None:
+                self._ml_error = "bundled model missing or invalid"
+                _log.warning("lump: ML is enabled but the bundled model could not be loaded; running rules only")
         transformer = None
         if settings.transformer:
             from ..ml.transformer import TransformerBackend
 
             transformer = TransformerBackend(settings.transformer_dir)
+        if model is None and transformer is None:
+            return None
         return MLDetector(model, settings, transformer)
+
+    def ml_status(self) -> dict:
+        """What the learned layer is actually running (for /healthz and audits)."""
+
+        ml = self.ml
+        return {
+            "enabled": self.config.ml.enabled,
+            "builtin": f"{ml.model.name}@{ml.model.version}" if ml and ml.model else None,
+            "transformer": ml.transformer.model_id if ml and ml.transformer else None,
+            "error": self._ml_error,
+        }
 
     # -- text inspection ---------------------------------------------------
 
@@ -114,7 +145,7 @@ class Engine:
         ctx = context if isinstance(context, Context) else Context.from_dict(context)
         findings: list[Finding] = []
         if text:
-            scan_text = self._limit(text, findings)
+            scan_text = self._limit(argument_text(text) if ctx.direction is Direction.TOOL_CALL else text, findings)
             norm = normalize(scan_text)
 
             if self.injection and ctx.direction in _INJECTION_DIRECTIONS:
@@ -138,8 +169,9 @@ class Engine:
                 except Exception:  # noqa: BLE001 - a bad plugin must not break inspection
                     continue
 
+        findings = _scrub_ml_evidence(findings, scan_text if text else "")
         verdict = self.policy.evaluate(findings, ctx)
-        if verdict.action is Action.REDACT or (self.policy.redact_secrets and self._has_redactable(findings)):
+        if self.policy.enforcing and (verdict.action is Action.REDACT or (self.policy.redact_secrets and self._has_redactable(findings))):
             redacted = redact(text, [f for f in findings if f.detector == "dlp"])
             if redacted != text:
                 verdict.redacted_text = redacted
@@ -177,6 +209,7 @@ class Engine:
                 findings += self.dlp.detect(args_text)
             if self.code:
                 findings += self.code.detect(args_text)
+            findings = _scrub_ml_evidence(findings, args_text)
         verdict = self.policy.evaluate(findings, ctx)
         verdict.latency_ms = (time.perf_counter() - start) * 1000.0
         return verdict
@@ -242,3 +275,30 @@ def argument_text(arguments: str) -> str:
             value = obj if isinstance(obj, str) else json.dumps(obj)
             lines.append(f"{key}: {value}" if key else value)
     return "\n".join(lines)
+
+
+def _scrub_ml_evidence(findings: list[Finding], text: str) -> list[Finding]:
+    """Drop ML explanation n-grams that come from text DLP flagged.
+
+    DLP masks its own evidence; without this, the classifier's top n-grams
+    could repeat part of the same secret in the same response.
+    """
+
+    spans = [f.span for f in findings if f.detector == "dlp" and f.span]
+    if not spans or not any(f.detector == "ml" for f in findings):
+        return findings
+    from dataclasses import replace
+
+    from ..ml.features import normalize as ml_normalize
+
+    secrets = [ml_normalize(text[a:b]) for a, b in spans]
+    out = []
+    for f in findings:
+        expl = f.metadata.get("explanation") if f.detector == "ml" else None
+        if expl:
+            kept = [(g, w) for g, w in expl if not any(g and g in s for s in secrets)]
+            if len(kept) != len(expl):
+                evidence = ", ".join(f'"{g}"' for g, _ in kept[:4]) or f"p={f.confidence:.3f}"
+                f = replace(f, evidence=evidence[:160], metadata={**f.metadata, "explanation": kept})
+        out.append(f)
+    return out
