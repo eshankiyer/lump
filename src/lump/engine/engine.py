@@ -17,6 +17,7 @@ discovered and run automatically.
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -89,22 +90,31 @@ class Engine:
 
     # -- text inspection ---------------------------------------------------
 
+    def _limit(self, text: str, findings: list[Finding]) -> str:
+        """Cut ``text`` to the inspection limit, recording an ENG-TRUNC finding.
+
+        Never truncate silently: content past the limit is uninspected, and
+        padding an attack past it would otherwise be an evasion.
+        """
+
+        if len(text) <= self.config.max_bytes:
+            return text
+        scan_text = text[: self.config.max_bytes]
+        findings.append(Finding(
+            detector="engine", rule_id="ENG-TRUNC",
+            title=f"Content exceeds the inspection limit; only the first {self.config.max_bytes} characters were inspected",
+            severity=Severity.MEDIUM, confidence=1.0, category="engine.truncated",
+            evidence=f"{len(text)} characters, {len(text) - len(scan_text)} uninspected",
+            owasp=("LLM10",), metadata={"length": len(text), "inspected": len(scan_text)},
+        ))
+        return scan_text
+
     def inspect(self, text: str, context: Context | dict | None = None) -> Verdict:
         start = time.perf_counter()
         ctx = context if isinstance(context, Context) else Context.from_dict(context)
         findings: list[Finding] = []
         if text:
-            scan_text = text if len(text) <= self.config.max_bytes else text[: self.config.max_bytes]
-            if len(scan_text) < len(text):
-                # Never truncate silently: content past the limit is uninspected,
-                # and padding an attack past it would otherwise be an evasion.
-                findings.append(Finding(
-                    detector="engine", rule_id="ENG-TRUNC",
-                    title=f"Content exceeds the inspection limit; only the first {self.config.max_bytes} characters were inspected",
-                    severity=Severity.MEDIUM, confidence=1.0, category="engine.truncated",
-                    evidence=f"{len(text)} characters, {len(text) - len(scan_text)} uninspected",
-                    owasp=("LLM10",), metadata={"length": len(text), "inspected": len(scan_text)},
-                ))
+            scan_text = self._limit(text, findings)
             norm = normalize(scan_text)
 
             if self.injection and ctx.direction in _INJECTION_DIRECTIONS:
@@ -155,15 +165,18 @@ class Engine:
         ctx.direction = Direction.TOOL_CALL
         findings = self.agentic.inspect_tool_call(call, policy)
         if call.arguments:
-            norm = normalize(call.arguments)
+            # Arguments usually arrive as JSON with \\uXXXX escapes (json.dumps
+            # defaults to ASCII); detectors must see the text as written.
+            args_text = self._limit(argument_text(call.arguments), findings)
+            norm = normalize(args_text)
             if self.injection:
                 findings += self.injection.detect(norm, Context(direction=Direction.INPUT, trusted=False))
             if self.ml:
                 findings += self.ml.detect(norm, Context(direction=Direction.INPUT, trusted=False))
             if self.dlp:
-                findings += self.dlp.detect(call.arguments)
+                findings += self.dlp.detect(args_text)
             if self.code:
-                findings += self.code.detect(call.arguments)
+                findings += self.code.detect(args_text)
         verdict = self.policy.evaluate(findings, ctx)
         verdict.latency_ms = (time.perf_counter() - start) * 1000.0
         return verdict
@@ -173,9 +186,9 @@ class Engine:
         ctx = context if isinstance(context, Context) else Context.from_dict(context)
         ctx.direction = Direction.TOOL_DEFINITION
         findings = self.agentic.inspect_tool_definition(tool)
-        blob = f"{tool.description}\n{tool.schema}"
+        blob = f"{tool.description}\n{argument_text(tool.schema)}"
         if blob.strip():
-            norm = normalize(blob)
+            norm = normalize(self._limit(blob, findings))
             if self.injection:
                 findings += self.injection.detect(norm, ctx)
             if self.ml:
@@ -204,3 +217,28 @@ class Engine:
                     yield run
             except Exception:  # noqa: BLE001
                 continue
+
+
+def argument_text(arguments: str) -> str:
+    """Readable text of a JSON tool-call payload: one ``key: value`` line per
+    leaf with string escapes decoded. Non-JSON input is returned unchanged."""
+
+    try:
+        data = json.loads(arguments)
+    except (ValueError, RecursionError):
+        return arguments
+    if isinstance(data, str):
+        return data
+    lines: list[str] = []
+    stack: list[tuple[str, object]] = [("", data)]
+    while stack:  # iterative: arbitrarily deep JSON must not exhaust the stack
+        key, obj = stack.pop()
+        if isinstance(obj, (dict, list)):
+            if key:  # keys can carry text too
+                lines.append(key)
+            items = [(str(k), v) for k, v in obj.items()] if isinstance(obj, dict) else [("", v) for v in obj]
+            stack.extend(reversed(items))
+        else:
+            value = obj if isinstance(obj, str) else json.dumps(obj)
+            lines.append(f"{key}: {value}" if key else value)
+    return "\n".join(lines)

@@ -12,7 +12,10 @@ positive rates on held-out benign data:
 * ``critical`` (≈0.1% FPR) -> CRITICAL
 
 Hidden payloads recovered by the normaliser (Unicode-tag smuggling, base64,
-hex ...) are scored too, so encoding an attack does not hide it from the model.
+hex ...) are all scored, as is the homoglyph-folded text, so encoding an
+attack or swapping in look-alike letters does not hide it from the model.
+Very long text is scored within a budget (head and tail, see
+:func:`lump.ml.features.clip`); the rules still scan all of it.
 """
 
 from __future__ import annotations
@@ -28,6 +31,9 @@ _REFS_INJECTION = ("AML.T0051",)
 _REFS_JAILBREAK = ("AML.T0054",)
 
 
+_VIEW_TITLES = {"canonical": " (look-alike letters folded)"}
+
+
 @dataclass
 class MLSettings:
     enabled: bool = True
@@ -36,10 +42,27 @@ class MLSettings:
     block: float | None = None
     critical: float | None = None
     explain: bool = True
-    max_views: int = 4
+    max_chars: int = 100_000  # per view; longer text is scored head + tail
     transformer: bool = False  # optional ONNX transformer backend (lump[ml])
     transformer_dir: str | None = None
     model: Model | None = None  # an already-loaded model (takes precedence over model_path)
+
+
+def resolve_thresholds(model_thresholds: dict, settings: MLSettings | None = None) -> dict[str, float]:
+    """Operating points: operator overrides, else the model's, else defaults.
+
+    The result is always ordered (warn <= block <= critical), so overriding one
+    tier can never leave another unreachable.
+    """
+
+    s = settings or MLSettings()
+    t = model_thresholds or {}
+    warn = s.warn if s.warn is not None else t.get("warn", 0.5)
+    block = s.block if s.block is not None else t.get("block", 0.9)
+    critical = s.critical if s.critical is not None else t.get("critical", max(block, 0.995))
+    block = max(block, warn)
+    critical = max(critical, block)
+    return {"warn": float(warn), "block": float(block), "critical": float(critical)}
 
 
 class MLDetector:
@@ -48,10 +71,8 @@ class MLDetector:
     def __init__(self, model: Model, settings: MLSettings | None = None, transformer=None):
         self.model = model
         self.settings = settings or MLSettings()
-        t = model.thresholds
-        self.warn = self.settings.warn if self.settings.warn is not None else t.get("warn", 0.5)
-        self.block = self.settings.block if self.settings.block is not None else t.get("block", 0.9)
-        self.critical = self.settings.critical if self.settings.critical is not None else t.get("critical", max(self.block, 0.995))
+        th = resolve_thresholds(model.thresholds, self.settings)
+        self.warn, self.block, self.critical = th["warn"], th["block"], th["critical"]
         self.transformer = transformer
 
     def _severity(self, p: float) -> Severity | None:
@@ -63,13 +84,31 @@ class MLDetector:
             return Severity.MEDIUM
         return None
 
+    @staticmethod
+    def views(norm: Normalized) -> list[tuple[str, str]]:
+        """The texts the model scores: the original, the homoglyph-folded form
+        (only when look-alike letters are present) and every hidden layer the
+        normaliser recovered. No count cap: decoy layers placed in front of a
+        payload must not push it out of view."""
+
+        out = [("original", norm.original)]
+        seen = {norm.original}
+        if norm.confusable_count and norm.canonical not in seen:
+            out.append(("canonical", norm.canonical))
+            seen.add(norm.canonical)
+        for label, text in norm.views:
+            if label in _HIDDEN_VIEWS and text.strip() and text not in seen:
+                out.append((label, text))
+                seen.add(text)
+        return out
+
     def detect(self, norm: Normalized, ctx: Context) -> list[Finding]:
-        candidates = [("original", norm.original)] + [(label, text) for label, text in norm.views if label in _HIDDEN_VIEWS]
         best = None
-        for label, text in candidates[: self.settings.max_views]:
+        limit = self.settings.max_chars or None
+        for label, text in self.views(norm):
             if not text.strip():
                 continue
-            score = self.model.score(text)
+            score = self.model.score(text, limit=limit)
             if best is None or score.p_attack > best[1].p_attack:
                 best = (label, score, text)
         findings: list[Finding] = []
@@ -90,14 +129,14 @@ class MLDetector:
             return None
         attack_class = max((c for c in score.probs if c != "benign"), key=lambda c: score.probs[c])
         jailbreak = attack_class == "jailbreak"
-        explanation = self.model.explain(text, score.window) if self.settings.explain else []
+        explanation = self.model.explain(text, score.window, limit=self.settings.max_chars or None) if self.settings.explain else []
         evidence = ", ".join(f'"{g}"' for g, _ in explanation[:4]) if explanation else f"p={p:.3f}"
-        hidden = view != "original"
+        where = "" if view == "original" else _VIEW_TITLES.get(view, f" (hidden in {view.replace('_', ' ')})")
         return Finding(
             detector=self.name,
             rule_id="ML-JB" if jailbreak else "ML-PI",
             title=("Learned classifier: jailbreak" if jailbreak else "Learned classifier: prompt injection")
-            + (f" (hidden in {view.replace('_', ' ')})" if hidden else "")
+            + where
             + f" p={p:.2f}",
             severity=severity,
             confidence=round(p, 4),

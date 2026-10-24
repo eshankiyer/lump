@@ -106,14 +106,22 @@ def _build_ml(data: dict) -> MLSettings:
             raise ValueError(f"[ml] {key} must be a probability below 1, got {value}")
         return float(value)
 
+    warn, block, critical = opt_float("warn"), opt_float("block"), opt_float("critical")
+    given = [(k, v) for k, v in (("warn", warn), ("block", block), ("critical", critical)) if v is not None]
+    for (k1, v1), (k2, v2) in zip(given, given[1:], strict=False):
+        if v1 > v2:
+            raise ValueError(f"[ml] {k1} ({v1}) must not be above {k2} ({v2})")
+    max_chars = int(data.get("max_chars", 100_000))
+    if max_chars < 2000:
+        raise ValueError("[ml] max_chars must be at least 2000")
     return MLSettings(
         enabled=bool(data.get("enabled", True)),
         model_path=data.get("model_path"),
-        warn=opt_float("warn"),
-        block=opt_float("block"),
-        critical=opt_float("critical"),
+        warn=warn,
+        block=block,
+        critical=critical,
         explain=bool(data.get("explain", True)),
-        max_views=int(data.get("max_views", 4)),
+        max_chars=max_chars,
         transformer=bool(data.get("transformer", False)),
         transformer_dir=data.get("transformer_dir"),
     )

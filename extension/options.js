@@ -29,9 +29,10 @@
   function run() {
     const text = tester.value;
     if (!text.trim()) { result.textContent = "—"; return; }
-    const v = Lump.inspect(text, { untrusted: true, model });
+    const v = Lump.inspect(text, { direction: document.getElementById("direction").value, model });
     result.textContent = "action=" + v.action + "  risk=" + v.risk + (model ? "" : "  (ML model not loaded)") + "\n" +
       v.findings.map((f) => `  [${f.severity}] ${f.rule_id} ${f.title} (${f.confidence})`).join("\n");
   }
   tester.addEventListener("input", run);
+  document.getElementById("direction").addEventListener("change", run);
 })();

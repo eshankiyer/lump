@@ -171,7 +171,7 @@ def decode_layers(text: str, depth: int = 2) -> list[tuple[str, str]]:
 
     found: list[tuple[str, str]] = []
     frontier = [text]
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()  # per decoder: a hex run also matches the base64 pattern
     for _ in range(depth):
         nxt: list[str] = []
         for chunk in frontier:
@@ -184,9 +184,9 @@ def decode_layers(text: str, depth: int = 2) -> list[tuple[str, str]]:
                     if len(found) >= MAX_DECODED_SEGMENTS:
                         return found
                     candidate = match.group()[:MAX_SEGMENT_CHARS]
-                    if candidate in seen:
+                    if (kind, candidate) in seen:
                         continue
-                    seen.add(candidate)
+                    seen.add((kind, candidate))
                     decoded = decoder(candidate)
                     if decoded:
                         found.append((kind, decoded))

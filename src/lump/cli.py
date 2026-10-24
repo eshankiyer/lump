@@ -209,6 +209,7 @@ def cmd_hash_edm(args) -> int:
 
 
 def cmd_model(args) -> int:
+    from .ml.detector import resolve_thresholds
     from .ml.model import Model, ModelError, default_model
 
     if args.model_cmd == "pull":
@@ -231,8 +232,8 @@ def cmd_model(args) -> int:
         return 0
     text = " ".join(args.text) if args.text else sys.stdin.read()
     score = model.score(text, explain=True)
-    th = model.thresholds
-    level = ("critical" if score.p_attack >= th.get("critical", 1.0) else "block" if score.p_attack >= th["block"]
+    th = resolve_thresholds(model.thresholds)  # the model's own operating points, as the engine resolves them
+    level = ("critical" if score.p_attack >= th["critical"] else "block" if score.p_attack >= th["block"]
              else "warn" if score.p_attack >= th["warn"] else "allow")
     if args.json:
         print(json.dumps({"p_attack": round(score.p_attack, 6), "label": score.label, "level": level,

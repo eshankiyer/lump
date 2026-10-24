@@ -25,6 +25,8 @@ jobs:
       - name: Rules and model in the extension are current
         run: |
           lump export-rules -o /tmp/rules.json && diff -q /tmp/rules.json extension/rules.json
+          mkdir -p /tmp/tiny && python -m lump.ml.fixture --tiny /tmp/tiny
+          cmp /tmp/tiny/tiny.lumpml extension/test/tiny.lumpml && diff -q /tmp/tiny/tiny_fixture.json extension/test/tiny_fixture.json
           if [ -f src/lump/data/models/injection-v1.lumpml ]; then
             cmp src/lump/data/models/injection-v1.lumpml extension/models/injection-v1.lumpml
             python -m lump.ml.fixture > /tmp/ml_fixture.json && diff -q /tmp/ml_fixture.json extension/test/ml_fixture.json

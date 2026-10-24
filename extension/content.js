@@ -10,7 +10,8 @@
  *
  * Detection is local: the rule set (detector.js) plus the learned classifier
  * (ml.js + models/injection-v1.lumpml, the same model the Python engine ships).
- * The model loads in the background; until it is ready, rules alone apply.
+ * The model loads in the background; until it is ready, rules alone apply,
+ * and responses already on the page are scanned again once it has loaded.
  * Nothing is sent anywhere unless the user configures a control-plane URL.
  */
 
@@ -23,7 +24,7 @@
   if (config.ml !== false && typeof LumpML !== "undefined") {
     fetch(chrome.runtime.getURL("models/injection-v1.lumpml"))
       .then((r) => r.arrayBuffer()).then((buf) => LumpML.loadModel(buf))
-      .then((m) => { model = m; })
+      .then((m) => { model = m; rescanResponses(); })
       .catch((e) => console.warn("[Lump] ML model unavailable, rules only:", e && e.message));
   }
 
@@ -69,7 +70,7 @@
     if (!config.scanPrompts) return;
     const { text } = promptText();
     if (!text || text.length < 3) return;
-    const verdict = Lump.inspect(text, { untrusted: false, model });
+    const verdict = Lump.inspect(text, { direction: "input", model });
     if (verdict.action === "allow") return;
     const top = verdict.findings[0] || {};
     const what = (top.title || "Sensitive content") + " (risk " + verdict.risk + ")";
@@ -97,7 +98,8 @@
   }, true);
 
   // --- 2. response inspection ---
-  const scanned = new WeakSet();
+  let scanned = new WeakSet();
+  function rescanResponses() { scanned = new WeakSet(); scanResponses(); }
   function scanResponses() {
     if (!config.scanResponses) return;
     const nodes = document.querySelectorAll(
@@ -108,7 +110,7 @@
       scanned.add(node);
       const text = node.innerText || "";
       if (text.length < 8) { scanned.delete(node); continue; }
-      const verdict = Lump.inspect(text, { untrusted: true, dlp: false, model });
+      const verdict = Lump.inspect(text, { direction: "output", dlp: false, model });
       if (verdict.action === "allow") continue;
       const top = verdict.findings[0] || {};
       report(verdict.action, verdict, "output");

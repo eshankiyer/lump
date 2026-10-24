@@ -57,24 +57,74 @@ const LumpML = (() => {
     return out;
   }
 
-  function hashFeatures(grams, cfg) {
+  // Same bytes as Python's crc32(data[start:end], seed) without a copy.
+  function crc32Range(bytes, start, end, seed) {
+    let c = (seed ^ 0xffffffff) >>> 0;
+    for (let i = start; i < end; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function crc32Ascii(str, seed) {
+    let c = (seed ^ 0xffffffff) >>> 0;
+    for (let i = 0; i < str.length; i++) c = CRC_TABLE[(c ^ str.charCodeAt(i)) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  const WORD_SEED = crc32(ENC.encode("w:"));
+  const CHAR_SEED = crc32(ENC.encode("c:"));
+
+  // Hashes of every n-gram: same values as ngrams(norm).map(g => crc32(utf8(g)))
+  // without building the strings (the hot path, mirrors features.hashed_ngrams).
+  function hashedNgrams(norm, cfg) {
+    const out = [];
+    const words = norm.match(WORD_RE) || []; // [a-z0-9]+, so ASCII
+    for (const n of cfg.word_ngrams) {
+      for (let i = 0; i + n <= words.length; i++) {
+        let h = crc32Ascii(words[i], WORD_SEED);
+        for (let k = 1; k < n; k++) h = crc32Ascii(words[i + k], crc32Ascii(" ", h));
+        out.push(h);
+      }
+    }
+    const padded = " " + norm + " ";
+    const data = ENC.encode(padded);
+    const offs = [0];
+    for (const ch of padded) {
+      const cp = ch.codePointAt(0);
+      offs.push(offs[offs.length - 1] + (cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4));
+    }
+    const nCp = offs.length - 1;
+    for (const n of cfg.char_ngrams) {
+      for (let i = 0; i + n <= nCp; i++) {
+        const a = offs[i], b = offs[i + n];
+        let blank = true;
+        for (let j = a; j < b; j++) if (data[j] !== 0x20) { blank = false; break; }
+        if (!blank) out.push(crc32Range(data, a, b, CHAR_SEED));
+      }
+    }
+    return out;
+  }
+
+  function vectorize(hashes, cfg) {
     const mask = (1 << cfg.hash_bits) - 1;
     const vec = new Map();
-    for (const g of grams) {
-      const h = crc32(ENC.encode(g));
+    for (const h of hashes) {
       const idx = h & mask;
-      const sign = cfg.signed_hash && (h >>> 31) ? -1 : 1;
-      vec.set(idx, (vec.get(idx) || 0) + sign);
+      vec.set(idx, (vec.get(idx) || 0) + (cfg.signed_hash && (h >>> 31) ? -1 : 1));
     }
     let sq = 0;
-    for (const [idx, v] of vec) {
-      const w = v ? Math.sign(v) * (1 + Math.log(Math.abs(v))) : 0;
-      vec.set(idx, w);
-      sq += w * w;
+    for (const [idx, c] of vec) {
+      if (!c) { vec.delete(idx); continue; }
+      const v = Math.sign(c) * (1 + Math.log(Math.abs(c)));
+      vec.set(idx, v);
+      sq += v * v;
     }
-    const norm = Math.sqrt(sq);
-    if (norm > 0) for (const [idx, v] of vec) vec.set(idx, v / norm);
+    if (sq > 0) {
+      const inv = 1 / Math.sqrt(sq);
+      for (const [idx, v] of vec) vec.set(idx, v * inv);
+    }
     return vec;
+  }
+
+  function hashFeatures(grams, cfg) {
+    return vectorize(grams.map((g) => crc32(ENC.encode(g))), cfg);
   }
 
   function windows(norm, cfg) {
@@ -88,9 +138,40 @@ const LumpML = (() => {
     return out;
   }
 
-  function featurize(text, cfg) {
-    const norm = normalize(text, cfg.digits_to_zero);
-    return windows(norm, cfg).map((w) => hashFeatures(ngrams(w, cfg), cfg));
+  // Bound the cost of very long text: keep head and tail (features.clip).
+  function clip(norm, limit) {
+    if (!limit) return norm;
+    const chars = Array.from(norm);
+    if (chars.length <= limit) return norm;
+    const half = Math.floor(limit / 2);
+    return chars.slice(0, half).join("") + " " + chars.slice(chars.length - half).join("");
+  }
+
+  function featurize(text, cfg, limit) {
+    const norm = clip(normalize(text, cfg.digits_to_zero), limit);
+    return windows(norm, cfg).map((w) => vectorize(hashedNgrams(w, cfg), cfg));
+  }
+
+  // Mirrors model.validate_header: refuse a header that would crash, hang or
+  // silently mis-score at inspection time.
+  function validateHeader(h) {
+    const bad = (why) => { throw new Error("invalid model header: " + why); };
+    const num = (v) => typeof v === "number" && Number.isFinite(v);
+    if (!h || typeof h !== "object" || Array.isArray(h)) bad("not an object");
+    const classes = h.classes, f = h.features, quant = h.quant || {};
+    if (!Array.isArray(classes) || classes.length < 2 || !classes.includes("benign") || new Set(classes).size !== classes.length) bad("classes");
+    const C = classes.length;
+    if (!Array.isArray(h.bias) || h.bias.length !== C || !h.bias.every(num)) bad("bias");
+    if (!Array.isArray(quant.scales) || quant.scales.length !== C || !quant.scales.every((x) => num(x) && x > 0)) bad("scales");
+    const T = h.temperature === undefined ? 1 : h.temperature;
+    if (!num(T) || T <= 0) bad("temperature");
+    for (const v of Object.values(h.thresholds || {})) if (!num(v) || v <= 0 || v > 1) bad("thresholds");
+    if (!f || typeof f !== "object") bad("features");
+    const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+    if (!int(f.hash_bits, 8, 24)) bad("hash_bits");
+    if (!Number.isInteger(f.max_chars) || !Number.isInteger(f.window_stride) || !(f.window_stride > 0 && f.window_stride <= f.max_chars)) bad("windows");
+    if (!Array.isArray(f.word_ngrams) || !Array.isArray(f.char_ngrams) || !(f.word_ngrams.length + f.char_ngrams.length)) bad("n-grams");
+    if (![...f.word_ngrams, ...f.char_ngrams].every((n) => int(n, 1, 8))) bad("n-gram sizes");
   }
 
   // --- model file (same bytes as src/lump/data/models/*.lumpml) ---
@@ -107,7 +188,11 @@ const LumpML = (() => {
     const bytes = new Uint8Array(buffer);
     for (let i = 0; i < MAGIC.length; i++) if (bytes[i] !== MAGIC[i]) throw new Error("not a Lump model file");
     const hlen = new DataView(bytes.buffer, bytes.byteOffset).getUint32(8, true);
-    const header = JSON.parse(new TextDecoder().decode(bytes.subarray(12, 12 + hlen)));
+    if (12 + hlen > bytes.length) throw new Error("truncated model header");
+    let header;
+    try { header = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(12, 12 + hlen))); }
+    catch (e) { throw new Error("unreadable model header: " + e.message); }
+    validateHeader(header);
     const blob = bytes.subarray(12 + hlen);
     const C = header.classes.length;
     const D = 2 ** header.features.hash_bits;
@@ -139,19 +224,24 @@ const LumpML = (() => {
       return e;
     }
 
-    function explain(text, window = 0, topK = 6) {
-      const norm = normalize(text, cfg.digits_to_zero);
+    // Mirrors Model.explain: push = sign * tf * (w_attack - w_benign) for the
+    // attack class the gram favours most (tf = 1 + ln(count)).
+    function explain(text, window = 0, topK = 6, limit = undefined) {
+      const norm = clip(normalize(text, cfg.digits_to_zero), limit);
       const wins = windows(norm, cfg);
-      const grams = ngrams(wins[Math.min(window, wins.length - 1)], cfg);
+      const counts = new Map();
+      for (const g of ngrams(wins[Math.min(window, wins.length - 1)], cfg)) counts.set(g, (counts.get(g) || 0) + 1);
       const mask = (1 << cfg.hash_bits) - 1;
       const contrib = new Map();
-      for (const g of grams) {
+      for (const [g, n] of counts) {
         const h = crc32(ENC.encode(g));
         const o = (h & mask) * C;
         const sign = cfg.signed_hash && (h >>> 31) ? -1 : 1;
-        let attack = -Infinity;
-        for (let c = 0; c < C; c++) if (c !== benign) attack = Math.max(attack, q[o + c] * scales[c]);
-        contrib.set(g, (contrib.get(g) || 0) + sign * (attack - q[o + benign] * scales[benign]));
+        let push = -Infinity;
+        for (let c = 0; c < C; c++) {
+          if (c !== benign) push = Math.max(push, sign * (q[o + c] * scales[c] - q[o + benign] * scales[benign]));
+        }
+        contrib.set(g, push * (1 + Math.log(n)));
       }
       const ranked = [...contrib.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
       const words = ranked.filter(([g]) => g.startsWith("w:")).map(([g, v]) => [g.slice(2), +v.toFixed(4)]);
@@ -159,8 +249,9 @@ const LumpML = (() => {
       return words.concat(chars).slice(0, topK);
     }
 
+    // opts.limit bounds the normalised characters scored (head + tail).
     function score(text, opts = {}) {
-      const vecs = featurize(text, cfg);
+      const vecs = featurize(text, cfg, opts.limit);
       let best = -1, bestP = null, bestW = 0;
       vecs.forEach((vec, w) => {
         const p = probs(vec);
@@ -170,14 +261,14 @@ const LumpML = (() => {
       const out = { p_attack: best, probs: {}, window: bestW, windows: vecs.length };
       header.classes.forEach((c, i) => { out.probs[c] = bestP[i]; });
       out.label = header.classes[bestP.indexOf(Math.max(...bestP))];
-      if (opts.explain) out.explanation = explain(text, bestW);
+      if (opts.explain) out.explanation = explain(text, bestW, 6, opts.limit);
       return out;
     }
 
     return { header, thresholds: header.thresholds, score, explain, name: header.name, version: header.version };
   }
 
-  return { crc32, normalize, ngrams, hashFeatures, windows, featurize, loadModel };
+  return { crc32, normalize, ngrams, hashedNgrams, hashFeatures, vectorize, windows, clip, featurize, validateHeader, loadModel };
 })();
 
 if (typeof module !== "undefined" && module.exports) module.exports = LumpML;

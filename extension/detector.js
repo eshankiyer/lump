@@ -63,19 +63,119 @@ const Lump = (() => {
       return cp >= 0x20 && cp < 0x7f ? String.fromCharCode(cp) : "";
     }).join("")).join(" ");
   }
+  const VS_ALL_RE = /[\ufe00-\ufe0f\u{E0100}-\u{E01EF}]/gu;
   function canonicalize(text) {
     let out = text.normalize("NFKC");
-    out = stripInvisible(out);
+    out = stripInvisible(out).replace(VS_ALL_RE, "");
     out = foldConfusables(out);
     return out.replace(/[ \t\u00a0\u3000]+/g, " ");
   }
+
+  // --- hidden layers (mirror engine/normalize.py) ---
+  const NONPRINT_RE = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\p{Zl}\p{Zp}\p{Zs}]/u;
+  const LETTER_RE = /\p{L}/u;
+  function printableRatio(s) {
+    const chars = Array.from(s);
+    if (!chars.length) return 0;
+    let ok = 0;
+    for (const ch of chars) if (ch === " " || ch === "\n" || ch === "\r" || ch === "\t" || !NONPRINT_RE.test(ch)) ok++;
+    return ok / chars.length;
+  }
+  function looksTextual(s) {
+    const chars = Array.from(s);
+    if (chars.length < 6 || printableRatio(s) < 0.9) return false;
+    let letters = 0, spaces = 0;
+    for (const ch of chars) { if (LETTER_RE.test(ch)) letters++; if (ch === " ") spaces++; }
+    return letters >= chars.length * 0.5 && spaces >= 1;
+  }
+  const UTF8 = new TextDecoder("utf-8", { fatal: true });
+  const UTF8_LOSSY = new TextDecoder("utf-8");
+  function utf8(bytes) { try { return UTF8.decode(bytes); } catch (e) { return null; } }
+
+  const VS_RUN_RE = /[\ufe00-\ufe0f\u{E0100}-\u{E01EF}]{4,}/gu;
+  function decodeVariationSelectors(text) {
+    const out = [];
+    for (const m of text.matchAll(VS_RUN_RE)) {
+      const bytes = Array.from(m[0]).map((ch) => {
+        const cp = ch.codePointAt(0);
+        return cp <= 0xfe0f ? cp - 0xfe00 : cp - 0xe0100 + 16;
+      });
+      const decoded = new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array(bytes)).replace(/\ufffd/g, "");
+      if (printableRatio(decoded) > 0.9 && Array.from(decoded).length >= 4) out.push(decoded);
+    }
+    return out.join(" ");
+  }
+
+  const B64_RE = /(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/_-]{20,}={0,2}(?![A-Za-z0-9+/=_-])/g;
+  const HEX_RE = /(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){12,}(?![0-9A-Fa-f])/g;
+  const PCT_RE = /(?:%[0-9A-Fa-f]{2}){6,}/g;
+  const MAX_DECODED_SEGMENTS = 24, MAX_SEGMENT_CHARS = 16384;
+  function decodeB64(c) {
+    const s = c.trim();
+    if (s.length % 4 === 1) return null;
+    const padded = (s + "=".repeat((4 - (s.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    let bin;
+    try { bin = atob(padded); } catch (e) { return null; }
+    const d = utf8(Uint8Array.from(bin, (ch) => ch.charCodeAt(0)));
+    return d !== null && looksTextual(d) ? d : null;
+  }
+  function decodeHex(c) {
+    const bytes = new Uint8Array(c.length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(c.substr(i * 2, 2), 16);
+    const d = utf8(bytes);
+    return d !== null && looksTextual(d) ? d : null;
+  }
+  function decodePct(c) {
+    const bytes = new Uint8Array(c.length / 3);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(c.substr(i * 3 + 1, 2), 16);
+    const d = UTF8_LOSSY.decode(bytes);
+    return d !== c && looksTextual(d) ? d : null;
+  }
+  function decodeLayers(text, depth = 2) {
+    const found = [], seen = new Set();
+    let frontier = [text];
+    for (let level = 0; level < depth && frontier.length; level++) {
+      const next = [];
+      for (const chunk of frontier) {
+        for (const [kind, re, dec] of [["base64", B64_RE, decodeB64], ["hex", HEX_RE, decodeHex], ["percent", PCT_RE, decodePct]]) {
+          for (const m of chunk.matchAll(re)) {
+            if (found.length >= MAX_DECODED_SEGMENTS) return found;
+            const cand = m[0].slice(0, MAX_SEGMENT_CHARS);
+            if (seen.has(kind + ":" + cand)) continue; // per decoder: hex runs also match base64
+            seen.add(kind + ":" + cand);
+            const d = dec(cand);
+            if (d) { found.push([kind, d]); next.push(d); }
+          }
+        }
+      }
+      frontier = next;
+    }
+    return found;
+  }
+  function rot13(s) {
+    return s.replace(/[A-Za-z]/g, (c) => {
+      const b = c <= "Z" ? 65 : 97;
+      return String.fromCharCode(((c.charCodeAt(0) - b + 13) % 26) + b);
+    });
+  }
+
+  // Same views (and order) as engine/normalize.normalize, minus the
+  // despaced / de-leet views the browser rule set does not use.
   function views(text) {
     const v = [["original", text]];
     const canon = canonicalize(text);
     if (canon !== text) v.push(["canonical", canon]);
     const tags = revealTags(text);
     if (tags) v.push(["unicode_tags", tags]);
+    const vs = decodeVariationSelectors(text);
+    if (vs) v.push(["variation_selectors", vs]);
+    for (const [kind, decoded] of decodeLayers(canon)) v.push([kind, canonicalize(decoded)]);
+    if (/\brot[- ]?13\b/i.test(canon)) v.push(["rot13", rot13(canon)]);
     return v;
+  }
+  function hasConfusables(text) {
+    for (const ch of text) if (confusables[ch]) return true;
+    return false;
   }
 
   function severityFor(w) {
@@ -99,10 +199,10 @@ const Lump = (() => {
   }
 
   // --- detection ---
-  function inspectInjection(text, untrusted) {
+  function inspectInjection(text, untrusted, precomputed) {
     const findings = [];
     const weights = [];
-    const vs = views(text);
+    const vs = precomputed || views(text);
     for (const { rule, re } of injectionRegexes) {
       for (const [label, t] of vs) {
         const m = re.exec(t); if (re.global) re.lastIndex = 0;
@@ -203,36 +303,63 @@ const Lump = (() => {
   function mask(v) { v = String(v).replace(/[\r\n]/g, " "); return v.length <= 4 ? "*".repeat(v.length) : v.slice(0, 4) + "…[" + v.length + " chars]"; }
 
   // Learned-classifier finding (mirrors src/lump/ml/detector.py). ``model`` is
-  // a LumpML model; hidden Unicode-tag payloads are scored too.
-  function mlFinding(model, text, untrusted) {
+  // a LumpML model. Scored: the original, the homoglyph-folded text (when
+  // look-alike letters are present) and every hidden layer, uncapped, so decoy
+  // layers cannot push a payload out of view.
+  const ML_HIDDEN = new Set(["unicode_tags", "variation_selectors", "base64", "hex", "percent", "rot13"]);
+  const ML_MAX_CHARS = 100000; // per view, head + tail (MLSettings.max_chars)
+  function mlThresholds(th = {}) { // ml.detector.resolve_thresholds without overrides
+    const warn = th.warn ?? 0.5;
+    const block = Math.max(th.block ?? 0.9, warn);
+    const critical = Math.max(th.critical ?? Math.max(block, 0.995), block);
+    return { warn, block, critical };
+  }
+  function mlViews(text, vs) {
+    const out = [["original", text]], seen = new Set([text]);
+    const canon = vs.find(([l]) => l === "canonical");
+    if (canon && hasConfusables(text) && !seen.has(canon[1])) { out.push(canon); seen.add(canon[1]); }
+    for (const [label, t] of vs) {
+      if (ML_HIDDEN.has(label) && t.trim() && !seen.has(t)) { out.push([label, t]); seen.add(t); }
+    }
+    return out;
+  }
+  function mlFinding(model, text, vs) {
     let best = null;
-    for (const [label, t] of views(text)) {
-      if (label === "canonical" || !t.trim()) continue;
-      const s = model.score(t);
+    for (const [label, t] of mlViews(text, vs || views(text))) {
+      if (!t.trim()) continue;
+      const s = model.score(t, { limit: ML_MAX_CHARS });
       if (!best || s.p_attack > best.s.p_attack) best = { s, t, label };
     }
     if (!best) return null;
-    const th = model.thresholds, p = best.s.p_attack;
-    const sev = p >= (th.critical ?? 1.01) ? "critical" : p >= th.block ? "high" : p >= th.warn ? "medium" : null;
+    const th = mlThresholds(model.thresholds), p = best.s.p_attack;
+    const sev = p >= th.critical ? "critical" : p >= th.block ? "high" : p >= th.warn ? "medium" : null;
     if (!sev) return null;
     const jb = (best.s.probs.jailbreak || 0) > (best.s.probs.injection || 0);
-    const expl = model.explain(best.t, best.s.window).slice(0, 4);
+    const expl = model.explain(best.t, best.s.window, 6, ML_MAX_CHARS);
+    const where = best.label === "original" ? "" : best.label === "canonical" ? " (look-alike letters folded)"
+      : " (hidden in " + best.label.replace(/_/g, " ") + ")";
     return {
       detector: "ml", rule_id: jb ? "ML-JB" : "ML-PI",
-      title: (jb ? "Learned classifier: jailbreak" : "Learned classifier: prompt injection") +
-        (best.label !== "original" ? " (hidden)" : "") + " p=" + p.toFixed(2),
+      title: (jb ? "Learned classifier: jailbreak" : "Learned classifier: prompt injection") + where + " p=" + p.toFixed(2),
       severity: sev, confidence: +p.toFixed(4), category: jb ? "jailbreak.ml" : "prompt_injection.ml",
-      evidence: expl.map(([g]) => '"' + g + '"').join(", "), explanation: expl, untrusted,
+      evidence: expl.length ? expl.slice(0, 4).map(([g]) => '"' + g + '"').join(", ") : "p=" + p.toFixed(3),
+      explanation: expl, view: best.label,
     };
   }
 
+  // Directions mirror engine.types.Direction. Untrusted = anything that is not
+  // the user's own input; the ML block tier applies only to third-party
+  // content the agent reads (as in the Python default policy).
+  const ML_BLOCK_DIRECTIONS = new Set(["tool_result", "document", "tool_definition"]);
   function inspect(text, opts = {}) {
-    const untrusted = !!opts.untrusted;
-    const inj = opts.injection === false ? { findings: [], score: 0 } : inspectInjection(text, untrusted);
+    const direction = opts.direction || (opts.untrusted ? "document" : "input");
+    const untrusted = direction !== "input";
+    const vs = views(text);
+    const inj = opts.injection === false ? { findings: [], score: 0 } : inspectInjection(text, untrusted, vs);
     const dlp = opts.dlp === false ? [] : inspectDlp(text);
     const findings = inj.findings.concat(dlp);
     if (opts.model) {
-      try { const f = mlFinding(opts.model, text, untrusted); if (f) findings.push(f); } catch (e) { /* never break inspection */ }
+      try { const f = mlFinding(opts.model, text, vs); if (f) findings.push(f); } catch (e) { /* never break inspection */ }
     }
     const risk = score(findings);
     let action = "allow";
@@ -241,14 +368,14 @@ const Lump = (() => {
       if (f.severity === "critical") bump("block");
       if (f.detector === "injection" && (f.severity === "high") && (f.confidence >= 0.7)) bump("block");
       if (f.detector === "dlp" && (f.severity === "high" || f.severity === "critical")) bump("redact");
-      // Same policy as the Python engine: ML warns at MEDIUM, blocks at HIGH on
-      // untrusted content, and on direct input blocks only when the combined
-      // risk (rules + ML agreeing) crosses the block threshold below.
-      if (f.detector === "ml" && f.severity !== "low") bump("warn");
-      if (f.detector === "ml" && f.severity === "high" && untrusted) bump("block");
+      // Python default policy: ML warns at MEDIUM and blocks at HIGH only on
+      // tool results / documents / tool definitions; elsewhere (direct input,
+      // model output) it blocks only when the combined risk crosses 80 below.
+      if (f.detector === "ml") bump("warn");
+      if (f.detector === "ml" && f.severity === "high" && ML_BLOCK_DIRECTIONS.has(direction)) bump("block");
     }
     if (risk >= 80) bump("block"); else if (risk >= 40) bump("warn");
-    return { action, risk, findings };
+    return { action, risk, findings, direction };
   }
 
   const SEV_RISK = { info: 2, low: 10, medium: 30, high: 65, critical: 95 };
@@ -258,7 +385,14 @@ const Lump = (() => {
       const c = (SEV_RISK[f.severity] / 100) * Math.max(0.05, Math.min(f.confidence || 0.5, 1));
       rem *= 1 - c; top = Math.max(top, SEV_RISK[f.severity]);
     }
-    return Math.round(Math.max((1 - rem) * 100, top * 0.95));
+    return roundHalfEven(Math.max((1 - rem) * 100, top * 0.95));
+  }
+  // Python's round(): ties go to the even integer (28.5 -> 28), unlike Math.round.
+  function roundHalfEven(x) {
+    const f = Math.floor(x), d = x - f;
+    if (d > 0.5) return f + 1;
+    if (d < 0.5) return f;
+    return f % 2 === 0 ? f : f + 1;
   }
 
   function catalogLookup(host) {
@@ -270,7 +404,8 @@ const Lump = (() => {
     return null;
   }
 
-  return { load, inspect, inspectInjection, inspectDlp, canonicalize, views, catalogLookup, get rules() { return RULES; } };
+  return { load, inspect, inspectInjection, inspectDlp, canonicalize, views, decodeLayers, mlThresholds, catalogLookup, riskScore: score,
+           get rules() { return RULES; } };
 })();
 
 if (typeof module !== "undefined" && module.exports) module.exports = Lump;

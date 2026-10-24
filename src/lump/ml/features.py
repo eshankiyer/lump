@@ -5,7 +5,7 @@ and character n-grams, and each n-gram is hashed (CRC-32 of a type prefix plus
 its UTF-8 bytes) into a fixed-size feature space. CRC-32 is used because
 ``zlib.crc32`` runs in C, which keeps featurisation of a 2,000-character
 prompt under 2 ms in CPython, and it is a few lines of table code in JS. The same algorithm is implemented in
-``extension/ml.js``; ``tests/test_ml_parity.py`` and the Node parity test pin
+``extension/ml.js``; the Node parity test (``extension/test/ml.test.js``, fixture from ``python -m lump.ml.fixture``) pins
 the two together on a shared fixture, so a prompt gets the same score in the
 browser as at the gateway.
 
@@ -193,8 +193,21 @@ def windows(norm: str, cfg: FeatureConfig) -> list[str]:
     return out
 
 
-def featurize(text: str, cfg: FeatureConfig) -> list[dict[int, float]]:
-    """Feature vectors for every window of ``text``."""
+def clip(norm: str, limit: int | None) -> str:
+    """Bound the scoring cost of very long text: keep its head and tail.
 
-    norm = normalize(text, cfg.digits_to_zero)
+    Applied after normalisation, so NFKC expansion cannot exceed the budget.
+    Payloads are most often appended, so the end is kept as well as the start.
+    """
+
+    if not limit or len(norm) <= limit:
+        return norm
+    half = limit // 2
+    return norm[:half] + " " + norm[len(norm) - half :]
+
+
+def featurize(text: str, cfg: FeatureConfig, limit: int | None = None) -> list[dict[int, float]]:
+    """Feature vectors for every window of ``text`` (at most ``limit`` normalised characters)."""
+
+    norm = clip(normalize(text, cfg.digits_to_zero), limit)
     return [vectorize(hashed_ngrams(w, cfg), cfg) for w in windows(norm, cfg)]
