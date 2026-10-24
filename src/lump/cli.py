@@ -287,6 +287,20 @@ def _serve_forever(httpd) -> int:
 
 # -- parser ----------------------------------------------------------------
 
+def _accept_config_anywhere(parser: argparse.ArgumentParser) -> None:
+    """Let ``-c FILE`` go before or after the subcommand (``lump -c f serve`` and
+    ``lump serve -c f``). Subcommand copies default to SUPPRESS so they never
+    overwrite a value given before the subcommand."""
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sp in action.choices.values():
+                if not any("--config" in a.option_strings for a in sp._actions):
+                    sp.add_argument("-c", "--config", default=argparse.SUPPRESS,
+                                    help="path to a TOML/JSON/YAML config file")
+                _accept_config_anywhere(sp)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lump", description="Open-source runtime AI threat prevention.")
     p.add_argument("--version", action="version", version=f"lump {__version__}")
@@ -358,8 +372,6 @@ def build_parser() -> argparse.ArgumentParser:
     ms.add_argument("text", nargs="*", help="text to score (default: stdin)")
     ms.add_argument("--model", help="path to a .lumpml file (default: bundled)")
     ms.add_argument("--json", action="store_true")
-    for sp in (ms, mi):
-        sp.add_argument("-c", "--config", help="config file: its [ml] model_path and thresholds apply")
     mp = msub.add_parser("pull", help="download + verify the optional DeBERTa transformer (~740 MB)")
     mp.add_argument("--dir", help="cache directory (default: ~/.cache/lump)")
     md.set_defaults(func=cmd_model)
@@ -380,6 +392,7 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--compare-transformer", metavar="DIR",
                     help="also score the evaluation sets with the DeBERTa backend pulled into DIR (needs lump[ml])")
     tr.set_defaults(func=cmd_train)
+    _accept_config_anywhere(p)
     return p
 
 

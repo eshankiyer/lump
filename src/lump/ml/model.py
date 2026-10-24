@@ -55,7 +55,7 @@ class Model:
         self.bias: list[float] = [float(x) for x in header["bias"]]
         self.scales: list[float] = [float(x) for x in header["quant"]["scales"]]
         self.temperature = float(header.get("temperature", 1.0))
-        self.thresholds: dict[str, float] = {k: float(v) for k, v in header.get("thresholds", {}).items()}
+        self.thresholds: dict[str, float] = {k: float(v) for k, v in (header.get("thresholds") or {}).items()}
         self.name = header.get("name", "lump-injection")
         self.version = header.get("version", "0")
         self.weights = weights
@@ -215,7 +215,8 @@ def validate_header(header) -> None:
         scales = header["quant"]["scales"]
     except (KeyError, TypeError) as exc:
         raise ModelError(f"model header is missing {exc}") from exc
-    if not isinstance(classes, list) or "benign" not in classes or len(classes) < 2 or len(set(classes)) != len(classes):
+    if (not isinstance(classes, list) or not all(isinstance(c, str) for c in classes) or "benign" not in classes
+            or len(classes) < 2 or len(set(classes)) != len(classes)):
         raise ModelError("model header: classes must list 'benign' and at least one attack class")
     C = len(classes)
     if not isinstance(bias, list) or not isinstance(scales, list) or len(bias) != C or len(scales) != C:
@@ -224,7 +225,10 @@ def validate_header(header) -> None:
         _number(bias[i], "bias")
         _number(scales[i], "scale", lo=0.0, lo_open=True)
     _number(header.get("temperature", 1.0), "temperature", lo=0.0, lo_open=True)
-    for name, value in (header.get("thresholds") or {}).items():
+    thresholds = header.get("thresholds")
+    if thresholds is not None and not isinstance(thresholds, dict):
+        raise ModelError("model header: thresholds must be an object")
+    for name, value in (thresholds or {}).items():
         _number(value, f"threshold {name}", lo=0.0, hi=1.0, lo_open=True)
     if not isinstance(feats, dict):
         raise ModelError("model header: features must be an object")

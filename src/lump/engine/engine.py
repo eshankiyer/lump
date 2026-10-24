@@ -281,22 +281,41 @@ def _scrub_ml_evidence(findings: list[Finding], text: str) -> list[Finding]:
     """Drop ML explanation n-grams that come from text DLP flagged.
 
     DLP masks its own evidence; without this, the classifier's top n-grams
-    could repeat part of the same secret in the same response.
+    could repeat part of the same secret in the same response. A gram is
+    dropped if it lies inside a flagged span, or if it contains any word of 4+
+    characters from one (word n-grams join the pieces of ``ghp_...`` /
+    ``sk_live_...`` with spaces and can cross the edge of the span).
     """
 
     spans = [f.span for f in findings if f.detector == "dlp" and f.span]
     if not spans or not any(f.detector == "ml" for f in findings):
         return findings
+    import re
     from dataclasses import replace
 
     from ..ml.features import normalize as ml_normalize
 
     secrets = [ml_normalize(text[a:b]) for a, b in spans]
+
+    # The model may have scored a de-leeted view, where the secret's digits
+    # became letters ("4" -> "a"); compare through a skeleton that maps digits
+    # and their leet letters to one symbol, so every view's spelling matches.
+    def skel(t: str) -> str:
+        return re.sub(r"[0-9oieast]", "0", t)
+
+    words = {skel(w) for s in secrets for w in re.findall(r"[a-z0-9]+", s) if len(w) >= 4}
+
+    def leaks(gram: str) -> bool:
+        if not gram or any(gram in s for s in secrets):
+            return True
+        toks = [skel(t) for t in re.findall(r"[a-z0-9]+", gram)]
+        return any(len(t) >= 4 and any(t in w or w in t for w in words) for t in toks)
+
     out = []
     for f in findings:
         expl = f.metadata.get("explanation") if f.detector == "ml" else None
         if expl:
-            kept = [(g, w) for g, w in expl if not any(g and g in s for s in secrets)]
+            kept = [(g, w) for g, w in expl if not leaks(g)]
             if len(kept) != len(expl):
                 evidence = ", ".join(f'"{g}"' for g, _ in kept[:4]) or f"p={f.confidence:.3f}"
                 f = replace(f, evidence=evidence[:160], metadata={**f.metadata, "explanation": kept})
