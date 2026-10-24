@@ -126,8 +126,17 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
                       weight_decay=weight_decay, feature_dropout=feature_dropout)
     log(f"training: {len(splits['train'])} train / {len(splits['val'])} val records, 2^{hash_bits} features")
     result = train(splits["train"], splits["val"], cfg, log=log)
+    # Keep the float weights so a failed export never costs a training run.
+    import numpy as np
 
-    blob = export(result, cfg.features, metrics={}, version=version, augment_count=len(augment))
+    raw = out.with_suffix(".float.npz")
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(raw, W=result["W"], b=result["b"], temperature=result["temperature"],
+                        thresholds=json.dumps(result["thresholds"]), class_counts=json.dumps(result["class_counts"]))
+    log(f"saved float weights to {raw}")
+
+    check = splits["val"][:3000]
+    blob = export(result, cfg.features, metrics={}, version=version, augment_count=len(augment), check_records=check)
     model = Model.from_bytes(blob)
     log("evaluating rules vs ML vs ensemble")
     rows = evaluate_all(splits, model, log=log)
@@ -135,7 +144,7 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
                         "ml_fpr": round(r.ml_warn["fpr"], 4), "rules_recall": round(r.rules["recall"], 4),
                         "ensemble_recall": round(r.ensemble["recall"], 4), "ensemble_fpr": round(r.ensemble["fpr"], 4)}
                for r in rows}
-    blob = export(result, cfg.features, metrics=metrics, version=version, augment_count=len(augment))
+    blob = export(result, cfg.features, metrics=metrics, version=version, augment_count=len(augment), check_records=check)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(blob)
     log(f"wrote {out} ({len(blob) / 1e6:.2f} MB)")

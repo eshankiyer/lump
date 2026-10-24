@@ -314,17 +314,6 @@
   "license_on_card": "apache-2.0",
   "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
  },
- "m-a-p/CodeFeedback-Filtered-Instruction": {
-  "files": {
-   "default__train__0.parquet": {
-    "bytes": 175028271,
-    "sha256": "d85df0d70c32f81758b6278f3bdf70b1415289132ee5b2697aab497d4b9f0723",
-    "url": "https://huggingface.co/api/datasets/m-a-p/CodeFeedback-Filtered-Instruction/parquet/default/train/0.parquet"
-   }
-  },
-  "license_on_card": "apache-2.0",
-  "revision": "a08c213a9748c66c15d0225814be80a2e77adf4a"
- },
  "microsoft/llmail-inject-challenge": {
   "files": {
    "default__Phase1__0.parquet": {
