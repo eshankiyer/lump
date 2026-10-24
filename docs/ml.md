@@ -13,7 +13,7 @@ There are two backends:
 | Model | Logistic regression over hashed n-grams, trained by this project | `protectai/deberta-v3-base-prompt-injection-v2` (Apache-2.0), pinned |
 | Size | 1.6 MB, bundled in the package | about 740 MB, downloaded with `lump model pull` |
 | Dependencies | none (pure standard library) | `onnxruntime`, `tokenizers` (`pip install 'lump[ml]'`) |
-| Latency | about 1 ms per typical prompt | tens of ms per prompt |
+| Latency | about 0.3 ms per typical prompt, 3 ms per 2,000 characters (CPython) | roughly 0.1–0.4 s per prompt on a 4-core CPU |
 | Runs in the browser extension | yes, same file, bit-identical scores | no |
 | Enabled by | default | `[ml] transformer = true` |
 
@@ -203,7 +203,7 @@ any other code.
 An independent design review of this model, with measured prototypes, points
 to these improvements for a next version:
 
-- A cheaper featuriser: the current one costs about 3.7 ms per 2,000
+- A cheaper featuriser: the current one costs about 3 ms per 2,000
   characters in CPython; a prototype with fewer character n-gram sizes ran in
   about 1.1 ms with a larger hash space.
 - Content-word and skip bigrams, so filler words inserted inside an attack

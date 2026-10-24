@@ -39,7 +39,8 @@ managed laptop.
 ## Honest limitations
 
 - **The ML model is small by design.** The built-in classifier is a hashed n-gram
-  linear model, so it runs everywhere, including the browser, at about 1 ms. It
+  linear model, so it runs everywhere, including the browser, in about 0.3 ms per
+  typical prompt. It
   catches far more reworded attacks than the rules, but it has no deep
   understanding of who an instruction is addressed to. Carefully built benign
   look-alikes remain hard; [docs/ml.md](ml.md) and the model card give the
@@ -57,7 +58,9 @@ managed laptop.
 - **Host-sensor attribution is approximate for CDN-fronted services.** It
   relies on resolved IPs and reverse DNS, and shared CDN addresses can blur
   which AI service a connection belongs to.
-- **Throughput.** The engine scans roughly 300 KB/s per thread in pure Python.
+- **Throughput.** In pure Python the engine scans roughly 400 KB/s per thread with
+  rules only and about 220 KB/s with the ML layer; a typical prompt takes under
+  a millisecond either way.
   Typical prompts take well under a millisecond, while megabyte-sized documents
   take seconds. `engine.max_bytes` caps the cost.
 - **Browser support.** The extension is Chromium Manifest V3. Safari needs
