@@ -45,6 +45,12 @@ _CONFUSABLES = str.maketrans(
 )
 # _CONFUSABLES is a str.maketrans table keyed by ordinal; recover the chars.
 _CONFUSABLE_CHARS = frozenset(chr(k) for k in _CONFUSABLES)
+# Look-alikes from *another* script. Only these make a word "mixed-script":
+# Latin-script letters such as Turkish dotless ı are ordinary spelling (they
+# are still folded for scanning, just not reported as obfuscation).
+_FOREIGN_CONFUSABLES = frozenset(
+    ch for ch in _CONFUSABLE_CHARS if unicodedata.name(ch, "").startswith(("CYRILLIC", "GREEK"))
+)
 
 _LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s"})
 _LEET_WORD_RE = re.compile(r"\b(?=[A-Za-z0-9@$]*[A-Za-z])(?=[A-Za-z0-9@$]*[0-9@$])[A-Za-z0-9@$]{3,}\b")
@@ -231,9 +237,11 @@ def normalize(text: str) -> Normalized:
         norm.views.append(("variation_selectors", vs))
 
     norm.confusable_count = sum(1 for ch in text if ch in _CONFUSABLE_CHARS)
-    # Mixed-script words are a homoglyph signal; whole-script Cyrillic/Greek text is not.
+    # Mixed-script words are a homoglyph signal; whole-script Cyrillic/Greek text
+    # is not, and neither are Latin-script letters such as Turkish ı.
     if norm.confusable_count and _has_mixed_script_word(text):
-        norm.signals.append(("homoglyphs", f"{norm.confusable_count} look-alike characters in mixed-script words"))
+        foreign = sum(1 for ch in text if ch in _FOREIGN_CONFUSABLES)
+        norm.signals.append(("homoglyphs", f"{foreign} look-alike characters in mixed-script words"))
 
     spaced = _collapse_spaced(canonical)
     if spaced != canonical:
@@ -257,7 +265,7 @@ _WORD_RE = re.compile(r"\w{3,}", re.UNICODE)
 
 def _has_mixed_script_word(text: str) -> bool:
     for word in _WORD_RE.findall(text):
-        has_confusable = any(ch in _CONFUSABLE_CHARS for ch in word)
+        has_confusable = any(ch in _FOREIGN_CONFUSABLES for ch in word)
         has_ascii_letter = any("a" <= ch.lower() <= "z" for ch in word)
         if has_confusable and has_ascii_letter:
             return True
