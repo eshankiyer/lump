@@ -9,6 +9,7 @@ Endpoints
 * ``POST /v1/inspect/batch``         — inspect many items in one call
 * ``POST /v1/inspect/tool_call``     — inspect an agent tool call
 * ``POST /v1/inspect/tool_definition`` — inspect an MCP/function tool definition
+* ``POST /v1/ml/score``               — raw ML probability + explanation for a text
 * ``GET  /v1/catalog``               — the AI-service catalog
 * ``GET  /healthz`` / ``GET /metrics`` (Prometheus) / ``GET /api/metrics`` (JSON)
 * ``GET  /api/events``               — recent audit events
@@ -149,6 +150,8 @@ class ApiHandler(BaseHTTPRequestHandler):
                 self._inspect_tool_call(data)
             elif path == "/v1/inspect/tool_definition":
                 self._inspect_tool_definition(data)
+            elif path == "/v1/ml/score":
+                self._ml_score(data)
             elif path in ("/v1/events", "/api/events"):
                 self._ingest_events(data)
             else:
@@ -157,6 +160,24 @@ class ApiHandler(BaseHTTPRequestHandler):
             self._send(400, {"error": f"bad request: {type(exc).__name__}"})
         except Exception:  # noqa: BLE001 - never leak internals to the caller
             self._send(500, {"error": "internal error"})
+
+    def _ml_score(self, data: dict) -> None:
+        text = data.get("text", "")
+        if not isinstance(text, str):
+            return self._send(400, {"error": "'text' must be a string"})
+        ml = self.engine.ml
+        if ml is None:
+            return self._send(503, {"error": "ML detection is disabled or no model is installed"})
+        score = ml.model.score(text, explain=bool(data.get("explain", True)))
+        self._send(200, {
+            "model": f"{ml.model.name}@{ml.model.version}",
+            "p_attack": round(score.p_attack, 6),
+            "label": score.label,
+            "probs": {k: round(v, 6) for k, v in score.probs.items()},
+            "windows": score.windows,
+            "thresholds": {"warn": ml.warn, "block": ml.block, "critical": ml.critical},
+            "explanation": score.explanation,
+        })
 
     # -- event ingestion (browser extension, remote sensors) -----------------
 

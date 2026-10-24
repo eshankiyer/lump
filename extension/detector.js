@@ -202,11 +202,38 @@ const Lump = (() => {
 
   function mask(v) { v = String(v).replace(/[\r\n]/g, " "); return v.length <= 4 ? "*".repeat(v.length) : v.slice(0, 4) + "…[" + v.length + " chars]"; }
 
+  // Learned-classifier finding (mirrors src/lump/ml/detector.py). ``model`` is
+  // a LumpML model; hidden Unicode-tag payloads are scored too.
+  function mlFinding(model, text, untrusted) {
+    let best = null;
+    for (const [label, t] of views(text)) {
+      if (label === "canonical" || !t.trim()) continue;
+      const s = model.score(t);
+      if (!best || s.p_attack > best.s.p_attack) best = { s, t, label };
+    }
+    if (!best) return null;
+    const th = model.thresholds, p = best.s.p_attack;
+    const sev = p >= (th.critical ?? 1.01) ? "critical" : p >= th.block ? "high" : p >= th.warn ? "medium" : null;
+    if (!sev) return null;
+    const jb = (best.s.probs.jailbreak || 0) > (best.s.probs.injection || 0);
+    const expl = model.explain(best.t, best.s.window).slice(0, 4);
+    return {
+      detector: "ml", rule_id: jb ? "ML-JB" : "ML-PI",
+      title: (jb ? "Learned classifier: jailbreak" : "Learned classifier: prompt injection") +
+        (best.label !== "original" ? " (hidden)" : "") + " p=" + p.toFixed(2),
+      severity: sev, confidence: +p.toFixed(4), category: jb ? "jailbreak.ml" : "prompt_injection.ml",
+      evidence: expl.map(([g]) => '"' + g + '"').join(", "), explanation: expl, untrusted,
+    };
+  }
+
   function inspect(text, opts = {}) {
     const untrusted = !!opts.untrusted;
     const inj = opts.injection === false ? { findings: [], score: 0 } : inspectInjection(text, untrusted);
     const dlp = opts.dlp === false ? [] : inspectDlp(text);
     const findings = inj.findings.concat(dlp);
+    if (opts.model) {
+      try { const f = mlFinding(opts.model, text, untrusted); if (f) findings.push(f); } catch (e) { /* never break inspection */ }
+    }
     const risk = score(findings);
     let action = "allow";
     const bump = (a) => { if (ACTION_RANK[a] > ACTION_RANK[action]) action = a; };
@@ -214,6 +241,11 @@ const Lump = (() => {
       if (f.severity === "critical") bump("block");
       if (f.detector === "injection" && (f.severity === "high") && (f.confidence >= 0.7)) bump("block");
       if (f.detector === "dlp" && (f.severity === "high" || f.severity === "critical")) bump("redact");
+      // Same policy as the Python engine: ML warns at MEDIUM, blocks at HIGH on
+      // untrusted content, and on direct input blocks only when the combined
+      // risk (rules + ML agreeing) crosses the block threshold below.
+      if (f.detector === "ml" && f.severity !== "low") bump("warn");
+      if (f.detector === "ml" && f.severity === "high" && untrusted) bump("block");
     }
     if (risk >= 80) bump("block"); else if (risk >= 40) bump("warn");
     return { action, risk, findings };

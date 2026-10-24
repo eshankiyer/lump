@@ -18,6 +18,7 @@ from .engine.catalog import Catalog, Service
 from .engine.dlp import CustomPattern, DlpConfig, edm_hash, fingerprint_shingles
 from .engine.engine import EngineConfig
 from .engine.types import Action, Direction, Severity
+from .ml.detector import MLSettings
 from .policy.model import Policy, Rule, default_policy
 
 
@@ -65,7 +66,7 @@ def build(data: dict[str, Any], base_dir: Path | None = None) -> LumpConfig:
     cfg = LumpConfig(raw=data)
 
     _build_dlp(data.get("dlp", {}), cfg, base_dir)
-    cfg.engine = _build_engine(data.get("engine", {}), cfg.engine.dlp)
+    cfg.engine = _build_engine(data.get("engine", {}), cfg.engine.dlp, data.get("ml", {}))
     cfg.policy = _build_policy(data.get("policy", {}))
     _build_catalog(data.get("catalog", {}), cfg.catalog)
     cfg.agent_policy = _build_agent_policy(data.get("agent", {}))
@@ -82,7 +83,7 @@ def load(path: str | Path | None) -> LumpConfig:
 
 # -- section builders ------------------------------------------------------
 
-def _build_engine(data: dict, dlp: DlpConfig) -> EngineConfig:
+def _build_engine(data: dict, dlp: DlpConfig, ml: dict | None = None) -> EngineConfig:
     return EngineConfig(
         dlp=dlp,
         enable_injection=data.get("injection", True),
@@ -91,6 +92,30 @@ def _build_engine(data: dict, dlp: DlpConfig) -> EngineConfig:
         enable_output=data.get("output", True),
         load_plugins=data.get("plugins", True),
         max_bytes=int(data.get("max_bytes", 1_000_000)),
+        ml=_build_ml(ml or {}),
+    )
+
+
+def _build_ml(data: dict) -> MLSettings:
+    def opt_float(key):
+        # TOML has no null: absent or non-positive means "use the model's own operating point".
+        value = data.get(key)
+        if value is None or float(value) <= 0:
+            return None
+        if float(value) >= 1:
+            raise ValueError(f"[ml] {key} must be a probability below 1, got {value}")
+        return float(value)
+
+    return MLSettings(
+        enabled=bool(data.get("enabled", True)),
+        model_path=data.get("model_path"),
+        warn=opt_float("warn"),
+        block=opt_float("block"),
+        critical=opt_float("critical"),
+        explain=bool(data.get("explain", True)),
+        max_views=int(data.get("max_views", 4)),
+        transformer=bool(data.get("transformer", False)),
+        transformer_dir=data.get("transformer_dir"),
     )
 
 

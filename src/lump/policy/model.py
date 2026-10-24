@@ -131,6 +131,18 @@ def default_policy() -> Policy:
             # Any detected injection/jailbreak pattern warns at minimum, even
             # from the user directly — it is a signal worth surfacing.
             Rule(Action.WARN, detectors=("injection",), min_severity=Severity.MEDIUM),
+            # Learned classifier. Severity encodes the model's own operating
+            # points (MEDIUM ~2% FPR, HIGH ~0.5%, CRITICAL ~0.1%; CRITICAL is
+            # covered by the first rule). On untrusted content a HIGH score
+            # blocks on its own; on direct user input it warns, and blocks
+            # when the rules agree (the combined risk crosses block_risk).
+            Rule(Action.WARN, detectors=("ml",), min_severity=Severity.MEDIUM),
+            Rule(
+                Action.BLOCK,
+                detectors=("ml",),
+                min_severity=Severity.HIGH,
+                directions=(Direction.TOOL_RESULT, Direction.DOCUMENT, Direction.TOOL_DEFINITION),
+            ),
             # Secrets and high-value PII in outbound content are redacted.
             Rule(Action.REDACT, detectors=("dlp",), min_severity=Severity.HIGH),
             Rule(Action.REDACT, detectors=("dlp",), categories=("pii.payment_card", "pii.us_ssn", "pii.iban")),
@@ -140,6 +152,8 @@ def default_policy() -> Policy:
             # Dangerous code inside an agent *tool call* blocks (a model merely
             # printing the same command for a human only warns, below).
             Rule(Action.BLOCK, detectors=("code",), directions=(Direction.TOOL_CALL,), min_severity=Severity.HIGH),
+            # Content too large to inspect fully is never silently allowed.
+            Rule(Action.WARN, detectors=("engine",), categories=("engine.truncated",)),
             # Dangerous code / output is warned on (blocked only when critical, above).
             Rule(Action.WARN, detectors=("code", "output"), min_severity=Severity.MEDIUM),
             Rule(Action.WARN, detectors=("dlp",), min_severity=Severity.MEDIUM),

@@ -8,7 +8,10 @@ DeepSeek, Mistral, Grok, Perplexity, Poe, Copilot, Character.AI).
 - **Inbound:** checks model responses for indirect prompt injection and strips
   auto-loading image beacons that could exfiltrate data.
 
-All detection runs in the page using the same rule set as the Python engine.
+All detection runs in the page: the same rule set as the Python engine plus
+the same on-device ML classifier (`ml.js` loading `models/injection-v1.lumpml`,
+checksum-verified). Scores match the Python engine to within 1e-6. The model
+loads in the background; until it is ready, rules alone apply.
 Nothing leaves the browser unless you set a control-plane URL. If you do, only
 the verdict, risk score, rule ids and **hostname** are sent. The prompt text
 and the full URL are never sent.
@@ -31,13 +34,16 @@ lump export-rules -o extension/rules.json
 Then open `chrome://extensions`, enable **Developer mode**, click **Load
 unpacked** and select this `extension/` folder.
 
-Re-run `lump export-rules` whenever the engine's rules change, so the browser
-and the server stay in lockstep. CI checks that every exported pattern compiles
-in JavaScript and that the JS detector matches the Python engine on shared
-cases:
+Re-run `lump export-rules` whenever the engine's rules change, and copy the
+model after retraining, so the browser and the server stay in lockstep. CI
+checks that every exported pattern compiles in JavaScript, that the JS detector
+matches the Python engine on shared cases, and that the JS model reproduces
+Python's probabilities:
 
 ```bash
-node --test extension/test/detector.test.js
+cp src/lump/data/models/injection-v1.lumpml extension/models/
+python -m lump.ml.fixture > extension/test/ml_fixture.json
+node --test extension/test/detector.test.js extension/test/ml.test.js
 ```
 
 ## Other browsers

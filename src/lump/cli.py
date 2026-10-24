@@ -10,6 +10,8 @@
     lump export-rules [-o FILE]   export the rule set for the browser extension
     lump bench                    run the detection benchmark
     lump hash-edm [FILE]          hash exact-match values for a policy config
+    lump model info|score|pull    inspect the ML model, score text, fetch the transformer
+    lump train                    rebuild the ML model from the pinned datasets
 """
 
 from __future__ import annotations
@@ -193,7 +195,7 @@ def cmd_bench(args) -> int:
     from .bench.runner import run_benchmark
 
     cfg = _load_config(args)
-    return run_benchmark(cfg, corpus=args.corpus, as_json=args.json)
+    return run_benchmark(cfg, corpus=args.corpus, as_json=args.json, use_ml=not args.no_ml)
 
 
 def cmd_hash_edm(args) -> int:
@@ -203,6 +205,62 @@ def cmd_hash_edm(args) -> int:
     lines = (Path(args.file).read_text("utf-8").splitlines() if args.file and args.file != "-" else sys.stdin.read().splitlines())
     hashes = [edm_hash(ln.strip(), salt) for ln in lines if ln.strip()]
     print(json.dumps({"edm_salt": salt, "edm_hashes": hashes}, indent=2))
+    return 0
+
+
+def cmd_model(args) -> int:
+    from .ml.model import Model, ModelError, default_model
+
+    if args.model_cmd == "pull":
+        from .ml import transformer
+
+        dest = transformer.pull(args.dir)
+        print(f"transformer model ready in {dest}")
+        print("enable it with  [ml] transformer = true  in your config (needs: pip install 'lump[ml]')")
+        return 0
+    try:
+        model = Model.load(args.model) if args.model else default_model()
+    except (OSError, ModelError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if model is None:
+        print("error: no bundled model found; run `lump train` or pass --model", file=sys.stderr)
+        return 2
+    if args.model_cmd == "info":
+        print(json.dumps(model.info(), indent=2))
+        return 0
+    text = " ".join(args.text) if args.text else sys.stdin.read()
+    score = model.score(text, explain=True)
+    th = model.thresholds
+    level = ("critical" if score.p_attack >= th.get("critical", 1.0) else "block" if score.p_attack >= th["block"]
+             else "warn" if score.p_attack >= th["warn"] else "allow")
+    if args.json:
+        print(json.dumps({"p_attack": round(score.p_attack, 6), "label": score.label, "level": level,
+                          "probs": {k: round(v, 6) for k, v in score.probs.items()},
+                          "windows": score.windows, "explanation": score.explanation}, indent=2))
+    else:
+        print(f"p(attack)={score.p_attack:.4f}  -> {level}   ({model.name}@{model.version}, {score.windows} window(s))")
+        print("  " + "  ".join(f"{k}={v:.3f}" for k, v in score.probs.items()))
+        if score.explanation:
+            print("  top features: " + ", ".join(f"'{g}' (+{w:.2f})" for g, w in score.explanation))
+    return 0
+
+
+def cmd_train(args) -> int:
+    try:
+        from .ml.training.pipeline import run
+    except ImportError as exc:
+        print(f"error: training needs extra packages: pip install 'lump[train]' ({exc})", file=sys.stderr)
+        return 2
+    summary = run(
+        out=Path(args.out), report=Path(args.report) if args.report else None,
+        offline_dir=Path(args.offline_dir) if args.offline_dir else None,
+        corpus_cache=Path(args.corpus_cache) if args.corpus_cache else None,
+        hash_bits=args.hash_bits, epochs=args.epochs, version=args.version, workers=args.workers,
+        weight_decay=args.weight_decay, feature_dropout=args.feature_dropout,
+        card=Path(args.card) if args.card else None,
+    )
+    print(f"model written to {summary['model']} ({summary['bytes'] / 1e6:.2f} MB)")
     return 0
 
 
@@ -277,11 +335,38 @@ def build_parser() -> argparse.ArgumentParser:
     bn = sub.add_parser("bench", help="run the detection benchmark")
     bn.add_argument("--corpus", help="path to a JSONL benchmark corpus (defaults to the bundled one)")
     bn.add_argument("--json", action="store_true")
+    bn.add_argument("--no-ml", action="store_true", help="rules only (to compare against the full engine)")
     bn.set_defaults(func=cmd_bench)
 
     he = sub.add_parser("hash-edm", help="hash exact-data-match values for a config")
     he.add_argument("file", nargs="?"); he.add_argument("--salt", default="")
     he.set_defaults(func=cmd_hash_edm)
+
+    md = sub.add_parser("model", help="inspect the ML model, score text, or fetch the transformer backend")
+    msub = md.add_subparsers(dest="model_cmd", required=True)
+    mi = msub.add_parser("info", help="show the bundled model card (metrics, thresholds, provenance)")
+    mi.add_argument("--model", help="path to a .lumpml file (default: bundled)")
+    ms = msub.add_parser("score", help="score text with the ML model and explain the result")
+    ms.add_argument("text", nargs="*", help="text to score (default: stdin)")
+    ms.add_argument("--model", help="path to a .lumpml file (default: bundled)")
+    ms.add_argument("--json", action="store_true")
+    mp = msub.add_parser("pull", help="download + verify the optional DeBERTa transformer (~740 MB)")
+    mp.add_argument("--dir", help="cache directory (default: ~/.cache/lump)")
+    md.set_defaults(func=cmd_model)
+
+    tr = sub.add_parser("train", help="rebuild the ML model from the pinned public datasets (needs lump[train])")
+    tr.add_argument("--out", default="injection-v1.lumpml")
+    tr.add_argument("--report", help="write a JSON evaluation report here")
+    tr.add_argument("--offline-dir", help="directory with pre-downloaded parquet shards")
+    tr.add_argument("--corpus-cache", help="cache the built corpus (JSONL) here and reuse it")
+    tr.add_argument("--hash-bits", type=int, default=19)
+    tr.add_argument("--epochs", type=int, default=12)
+    tr.add_argument("--workers", type=int, default=4)
+    tr.add_argument("--version", default="dev")
+    tr.add_argument("--weight-decay", type=float, default=1e-6)
+    tr.add_argument("--feature-dropout", type=float, default=0.0)
+    tr.add_argument("--card", help="write the Markdown model card here")
+    tr.set_defaults(func=cmd_train)
     return p
 
 

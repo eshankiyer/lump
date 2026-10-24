@@ -49,7 +49,10 @@ def load_corpus(path: str | None) -> list[dict[str, Any]]:
     return rows
 
 
-def run_benchmark(config: LumpConfig, corpus: str | None = None, as_json: bool = False, f1_floor: float = 0.80) -> int:
+def run_benchmark(config: LumpConfig, corpus: str | None = None, as_json: bool = False, f1_floor: float = 0.80,
+                  use_ml: bool = True) -> int:
+    if not use_ml:
+        config.engine.ml.enabled = False
     engine = Engine(config.policy, config.engine)
     rows = load_corpus(corpus)
 

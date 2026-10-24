@@ -1,0 +1,482 @@
+{
+ "3nesdeniz/agentic-prompt-injection-5k": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 38305,
+    "sha256": "7becda4542ee2d844d854b6e07195630e14b52c51f0bee4bdbb27eb9ed93d964",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-5k/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 367573,
+    "sha256": "fc6ed1619af0c53c36d60361132422bc45984d3875337d6f465d5f4daa628cac",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-5k/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 37667,
+    "sha256": "e21a7ee7e2e6a12a424c8c8490aae3d9c18aab3d67765e2e997813d1c148d213",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-5k/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "e658d94dcafc133e3a4483f9f9aa13507f3848c4"
+ },
+ "3nesdeniz/agentic-prompt-injection-boundary-pairs": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 28856,
+    "sha256": "e18b19b86bcbe2d77496044e26be1ac2c726803c5b45518e1f1abaca4a6c5202",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 81490,
+    "sha256": "116364392a486ae71da9e3690dfebd43224a2980fedfb4a0158524651d59daba",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 21285,
+    "sha256": "2cc30ea5ed104aab9d479cbcb27676a8f5e9874ea1b9c92dcfb9129f3204f564",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "a5682e7573e1c7bc4b12e64d49c0dcd90ca776cf"
+ },
+ "3nesdeniz/english-prompt-injection-3k": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 21714,
+    "sha256": "3b83a2359d6d6cefeeab9546ed157feeb6aa35afc0551be671f1a7506ed3034e",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/english-prompt-injection-3k/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 166643,
+    "sha256": "f419b218dc4a8e9e879d02e7caef5fa424dbc71ae025a173f277cad6e7c65a12",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/english-prompt-injection-3k/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 20459,
+    "sha256": "b3171141db4dfcbe2055ccc8defe1857aed5b8258891a2d2e7f7932c9d237713",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/english-prompt-injection-3k/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "87f017347aff7887b1de0d9457c9ec01bf7ba8b5"
+ },
+ "3nesdeniz/guardrail-hard-negatives": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 27073,
+    "sha256": "945a5d354241754a8e67b4e51a8760edf3784bdde55e0f41381662448d716783",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/guardrail-hard-negatives/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 221462,
+    "sha256": "11b99a530da87aba2d2ad25743f201f0bc7c0f9c813ad9bf3d0dc0f1a470288f",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/guardrail-hard-negatives/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 25426,
+    "sha256": "425a0d6f74366956bdc73c4cb566d8c18f42a4806681d67d1214d39affa28903",
+    "url": "https://huggingface.co/api/datasets/3nesdeniz/guardrail-hard-negatives/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "638188743abb089708163b2408a0ef6279721869"
+ },
+ "Aditi20/tool-guardrail-dataset": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 183114,
+    "sha256": "c1adbe7796ec98f1f095585e8f7fa970c40701c298dc3e6583585c196c28d0d5",
+    "url": "https://huggingface.co/api/datasets/Aditi20/tool-guardrail-dataset/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 858963,
+    "sha256": "4b4792ecbce682f75f26af8fab754337a4e1a0ffdaf5760390eb3c50c78397fe",
+    "url": "https://huggingface.co/api/datasets/Aditi20/tool-guardrail-dataset/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 191178,
+    "sha256": "51f1658ca4783456c5a94aab7fcf41b2b7cd36121dae8ceb91c1dcc1cb677f1a",
+    "url": "https://huggingface.co/api/datasets/Aditi20/tool-guardrail-dataset/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "6525096f357ca206f59d3e7f0949267ecc96d1ec"
+ },
+ "Bravansky/compact-jailbreaks": {
+  "files": {
+   "attacks__train__0.parquet": {
+    "bytes": 232915245,
+    "sha256": "9205df6e0033d0d2b765b7429f1803f91d5c863993461ca694d374a7ea0bb329",
+    "url": "https://huggingface.co/api/datasets/Bravansky/compact-jailbreaks/parquet/attacks/train/0.parquet"
+   },
+   "llama-evaluation__train__0.parquet": {
+    "bytes": 730831,
+    "sha256": "f54dc5745f54d89773d491e36e87628683a87531e9a34831543f2c97eacfbf43",
+    "url": "https://huggingface.co/api/datasets/Bravansky/compact-jailbreaks/parquet/llama-evaluation/train/0.parquet"
+   },
+   "llama__train__0.parquet": {
+    "bytes": 1062498,
+    "sha256": "121faeadff17edf115a473666a7afac8078ddc2971c7576be492bd35d4e91406",
+    "url": "https://huggingface.co/api/datasets/Bravansky/compact-jailbreaks/parquet/llama/train/0.parquet"
+   },
+   "wildteaming-evaluation__train__0.parquet": {
+    "bytes": 1412342,
+    "sha256": "3f52230fe236f70478ec152fe230cf6487c875327e6654ebb5dd1632b0ebeb6d",
+    "url": "https://huggingface.co/api/datasets/Bravansky/compact-jailbreaks/parquet/wildteaming-evaluation/train/0.parquet"
+   },
+   "wildteaming__train__0.parquet": {
+    "bytes": 636540,
+    "sha256": "4488b0e7f65498909a6f22c90c05e031ea8c5a51b53145cdb2c884c8e22c8f80",
+    "url": "https://huggingface.co/api/datasets/Bravansky/compact-jailbreaks/parquet/wildteaming/train/0.parquet"
+   }
+  },
+  "license_on_card": [
+   "mit"
+  ],
+  "revision": "fdfb5b996723b473945a9bb8113912cb86657c07"
+ },
+ "DavidTKeane/ai-prompt-ai-injection-dataset": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 15632,
+    "sha256": "ba775e9565c91fc9b0f693c7d9b7db15a627603fec72a8fe0d6e6972429350a2",
+    "url": "https://huggingface.co/api/datasets/DavidTKeane/ai-prompt-ai-injection-dataset/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "73dd3b0063f31de70fd48b9c75f1712995a27644"
+ },
+ "HuggingFaceH4/ultrachat_200k": {
+  "files": {
+   "default__test_gen__0.parquet": {
+    "bytes": 80359907,
+    "sha256": "937211dbe6e7db6315cd894efaedfe0231198a211ed5a1f856b0553a4b3844c0",
+    "url": "https://huggingface.co/api/datasets/HuggingFaceH4/ultrachat_200k/parquet/default/test_gen/0.parquet"
+   },
+   "default__test_sft__0.parquet": {
+    "bytes": 81176553,
+    "sha256": "c18fd6e77395577652bdefbc5a87044ea799e989451ecfca5c6cf977ae5c6f70",
+    "url": "https://huggingface.co/api/datasets/HuggingFaceH4/ultrachat_200k/parquet/default/test_sft/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "8049631c405ae6576f93f445c6b8166f76f5505a"
+ },
+ "Lakera/gandalf_ignore_instructions": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 7336,
+    "sha256": "56b646d133335ebc535266bd55dbe1b5bee7caa4b95bf49d040684b9b5dd9972",
+    "url": "https://huggingface.co/api/datasets/Lakera/gandalf_ignore_instructions/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 36715,
+    "sha256": "5b6acf3e5a5998d21f8e1222bb45bbdec25a14408747b1cd63bebef4a75fa439",
+    "url": "https://huggingface.co/api/datasets/Lakera/gandalf_ignore_instructions/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 7464,
+    "sha256": "f51ab3e3407a368845b0f57932cc745c09280429416d7507bd178a16326a79f6",
+    "url": "https://huggingface.co/api/datasets/Lakera/gandalf_ignore_instructions/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "04737b65e90a6794ec227012e4a255a7def6344b"
+ },
+ "Open-Orca/OpenOrca": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 1010027486,
+    "sha256": "946f06e9a29884a8dbb352a95fb4b0530ff09e065d873e0dc9137a7c2ec0025d",
+    "url": "https://huggingface.co/api/datasets/Open-Orca/OpenOrca/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "e9c87b4abb2609913751f9b26553fdb9c061796c"
+ },
+ "OpenAssistant/oasst2": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 63494018,
+    "sha256": "9638227b41b0a4fb69afa5d5c4b52e3fb6abfd56c9870d81bae32c9981e769b1",
+    "url": "https://huggingface.co/api/datasets/OpenAssistant/oasst2/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 3180111,
+    "sha256": "fd46c63babc0756909a957ee40975bcf5610d58c5d1ab5ff2c57c0f57be1f273",
+    "url": "https://huggingface.co/api/datasets/OpenAssistant/oasst2/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "179dd21fc55192153d94adb0e0ce8f69e222bf75"
+ },
+ "TrustAIRLab/in-the-wild-jailbreak-prompts": {
+  "files": {
+   "jailbreak_2023_05_07__train__0.parquet": {
+    "bytes": 656975,
+    "sha256": "70c5cd810b59089ac2c98ff4ac5a1b9b65598c35c57d010c9d3f0e31c3f0651f",
+    "url": "https://huggingface.co/api/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts/parquet/jailbreak_2023_05_07/train/0.parquet"
+   },
+   "jailbreak_2023_12_25__train__0.parquet": {
+    "bytes": 1871641,
+    "sha256": "55bbc5e2be771ee16ed67aed4edb5ecef5f44ac69cea317a67e5405c5c6057a4",
+    "url": "https://huggingface.co/api/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts/parquet/jailbreak_2023_12_25/train/0.parquet"
+   },
+   "regular_2023_05_07__train__0.parquet": {
+    "bytes": 3264474,
+    "sha256": "c5262077fdd8bacae8f2bc8b7bd56dc970d96c475b592f075800a8bc27210465",
+    "url": "https://huggingface.co/api/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts/parquet/regular_2023_05_07/train/0.parquet"
+   },
+   "regular_2023_12_25__train__0.parquet": {
+    "bytes": 12560543,
+    "sha256": "23e90010ccbc85574bf46678528cddce5b02abc86d9a047209218af65cb37c68",
+    "url": "https://huggingface.co/api/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts/parquet/regular_2023_12_25/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "a10aab8eff1c73165a442d4464dce192bd28b9c5"
+ },
+ "deepset/prompt-injections": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 10892,
+    "sha256": "39ac797cabc157eeed58435a08593b2952bb6cb16fc394a2d383f447cc7b246e",
+    "url": "https://huggingface.co/api/datasets/deepset/prompt-injections/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 40323,
+    "sha256": "2e10bc7ab30f542c97e4e83e2a5683000b5057d25ec10908784c631d44124c04",
+    "url": "https://huggingface.co/api/datasets/deepset/prompt-injections/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "4f61ecb038e9c3fb77e21034b22511b523772cdd"
+ },
+ "djapp18/JailbreaksOverTime": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 17041646,
+    "sha256": "a34b7c29685844c3e3855874936ee4c2d6a4f4a38c5573988c90896a0aa252c6",
+    "url": "https://huggingface.co/api/datasets/djapp18/JailbreaksOverTime/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "a5a467cbab4b17d7f1c83e6cd119c61722053868"
+ },
+ "fka/awesome-chatgpt-prompts": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 4307788,
+    "sha256": "09b4996ce8686155f55a42fed18718fe6e0f2f5f146d9ef8624407efc27334e0",
+    "url": "https://huggingface.co/api/datasets/fka/prompts.chat/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "cc0-1.0",
+  "revision": "6e13221aadea7f803c2beecd5a8b4618c99d9d83"
+ },
+ "glaiveai/glaive-code-assistant": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 103952789,
+    "sha256": "7105f4c56d795835d80d1e379125bccb937e69d50ae558a4bdbbf1ef6500f431",
+    "url": "https://huggingface.co/api/datasets/glaiveai/glaive-code-assistant/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "398ce053096475671e8d3872b8e5b28b59f8fcec"
+ },
+ "ise-uiuc/Magicoder-OSS-Instruct-75K": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 88324940,
+    "sha256": "a84d6b7947ebd31cc290b67a98d39ef97c5c4c85ff83aa37bbcd47aeb823d617",
+    "url": "https://huggingface.co/api/datasets/ise-uiuc/Magicoder-OSS-Instruct-75K/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "5f839b1f368a76b161028bb9edff055db34022b2"
+ },
+ "jackhhao/jailbreak-classification": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 210777,
+    "sha256": "ac6e2f913e748558ac3c17be182a7f86c6076ce665cf034bc59491ecbb224c7e",
+    "url": "https://huggingface.co/api/datasets/jackhhao/jailbreak-classification/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 718668,
+    "sha256": "383b626a73da46af67c268401bd7ddd6e092f7b318aabbe84c32e9dd5d53392e",
+    "url": "https://huggingface.co/api/datasets/jackhhao/jailbreak-classification/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "2f2ceeb39658696fd3f462403562b6eea5306287"
+ },
+ "m-a-p/CodeFeedback-Filtered-Instruction": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 175028271,
+    "sha256": "d85df0d70c32f81758b6278f3bdf70b1415289132ee5b2697aab497d4b9f0723",
+    "url": "https://huggingface.co/api/datasets/m-a-p/CodeFeedback-Filtered-Instruction/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "a08c213a9748c66c15d0225814be80a2e77adf4a"
+ },
+ "microsoft/llmail-inject-challenge": {
+  "files": {
+   "default__Phase1__0.parquet": {
+    "bytes": 103675435,
+    "sha256": "224b258a8b33b1d6b643d5c56d26ff4bac364f8a68832d941b0671fea8f74c06",
+    "url": "https://huggingface.co/api/datasets/microsoft/llmail-inject-challenge/parquet/default/Phase1/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "1063bdf01ec8762b812d5e06ee768a06faa5a6f7"
+ },
+ "neuralchemy/Prompt-injection-dataset": {
+  "files": {
+   "core__test__0.parquet": {
+    "bytes": 94145,
+    "sha256": "fb5432035fdd8453d61f6593bfe78ee2970403c5ea59959b642a6708e2bef670",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/core/test/0.parquet"
+   },
+   "core__train__0.parquet": {
+    "bytes": 387456,
+    "sha256": "c0724f8e00eebb65c001be9ba94291d1608e5da0374012e53dfd4077c5f92558",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/core/train/0.parquet"
+   },
+   "core__validation__0.parquet": {
+    "bytes": 92943,
+    "sha256": "bbd417bfd0df1553dd769e814a0b62ca58ad5b1d08d153c90f66937a4af74deb",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/core/validation/0.parquet"
+   },
+   "full__test__0.parquet": {
+    "bytes": 94145,
+    "sha256": "fb5432035fdd8453d61f6593bfe78ee2970403c5ea59959b642a6708e2bef670",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/full/test/0.parquet"
+   },
+   "full__train__0.parquet": {
+    "bytes": 1409838,
+    "sha256": "47e72340dc1eea05e5a341acad936d3fedee724d205c784d1b6a196093270990",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/full/train/0.parquet"
+   },
+   "full__validation__0.parquet": {
+    "bytes": 92943,
+    "sha256": "bbd417bfd0df1553dd769e814a0b62ca58ad5b1d08d153c90f66937a4af74deb",
+    "url": "https://huggingface.co/api/datasets/neuralchemy/Prompt-injection-dataset/parquet/full/validation/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "7d70432dfcf47a821612cbf9d34e9d9e3ad20e75"
+ },
+ "nvidia/HelpSteer2": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 18495985,
+    "sha256": "246d731fc0b7aeef89841425a3e27abf5dc2dff6abeac9ee7ddd80bcc2194792",
+    "url": "https://huggingface.co/api/datasets/nvidia/HelpSteer2/parquet/default/train/0.parquet"
+   },
+   "default__validation__0.parquet": {
+    "bytes": 963692,
+    "sha256": "0add582523f049c233d4716d57a578b6a7b4ddee51bc8060e1598d9f26832c70",
+    "url": "https://huggingface.co/api/datasets/nvidia/HelpSteer2/parquet/default/validation/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "990b2711a36180dd19d9c94b8627844866f8982a"
+ },
+ "nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 9790032,
+    "sha256": "d63a9c021c5ab98b0eb8ada2876a4d96518ec3fa8b3fdbc0d9df9de7672ad418",
+    "url": "https://huggingface.co/api/datasets/nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "d738d4f361cc38bb4d7a42b9066776dade5332f5"
+ },
+ "nvidia/Nemotron-RL-Jailbreak-Robustness-v1": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 5888754,
+    "sha256": "66d0e3c22e27c5dae06a3767a44ba67651045cd062cd45f3764ac6bc0063c1af",
+    "url": "https://huggingface.co/api/datasets/nvidia/Nemotron-RL-Jailbreak-Robustness-v1/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": [
+   "cc-by-4.0",
+   "apache-2.0",
+   "mit"
+  ],
+  "revision": "9c0f85b03a577fa7ec5b15d458ea0380234e4f5e"
+ },
+ "nvidia/OpenCodeInstruct": {
+  "files": {
+   "train__train__0.parquet": {
+    "bytes": 251440678,
+    "sha256": "db2f8b9c836b17b9be4f94acfa1ab881f65d3708ff087c4599477e41cd6af2f5",
+    "url": "https://huggingface.co/api/datasets/nvidia/OpenCodeInstruct/parquet/train/train/0.parquet"
+   }
+  },
+  "license_on_card": "cc-by-4.0",
+  "revision": "8f3ba5bafe4d6e8db46082cf7ae6741bc370604d"
+ },
+ "reshabhs/SPML_Chatbot_Prompt_Injection": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 11141013,
+    "sha256": "8a972b41649cbddb4ea636bcfcf4c81ab960f4cc0c40a6eb4c7af483c8f34deb",
+    "url": "https://huggingface.co/api/datasets/reshabhs/SPML_Chatbot_Prompt_Injection/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "02ce8084e979bc7d4c24ee35d22ecb7f2db96ff5"
+ },
+ "rgeada/tool-response-injections": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 1044438,
+    "sha256": "25e4904830c53ed01ed54f425be7e4fc35e56d8394e9c1d181ee74ae136a49a6",
+    "url": "https://huggingface.co/api/datasets/rgeada/tool-response-injections/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 4207117,
+    "sha256": "dafd257f16b831f9191aa3a4d9ca74701667253d990ed69877f74a7f97f7f4d3",
+    "url": "https://huggingface.co/api/datasets/rgeada/tool-response-injections/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "apache-2.0",
+  "revision": "39050de797f2694f0d72e1086003154de1919379"
+ },
+ "wambosec/prompt-injections": {
+  "files": {
+   "default__test__0.parquet": {
+    "bytes": 98090,
+    "sha256": "24a7b363225c32260e1e3fddb138315570345c891608e4dd3b32438a9366b782",
+    "url": "https://huggingface.co/api/datasets/wambosec/prompt-injections/parquet/default/test/0.parquet"
+   },
+   "default__train__0.parquet": {
+    "bytes": 809716,
+    "sha256": "6e98332144e5ed52658ba7f899cfd583e388cd7fda733720a8c354af340f03e9",
+    "url": "https://huggingface.co/api/datasets/wambosec/prompt-injections/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "071ee17a60112b7f9f808398156b430aadfaf1d2"
+ },
+ "zachz/prompt-injection-benchmark": {
+  "files": {
+   "default__train__0.parquet": {
+    "bytes": 14355,
+    "sha256": "580663d2cb95c189a74dc472f7143cc7f2874b22356920342b2af10ba30e864c",
+    "url": "https://huggingface.co/api/datasets/zachz/prompt-injection-benchmark/parquet/default/train/0.parquet"
+   }
+  },
+  "license_on_card": "mit",
+  "revision": "dc0072ad6af8d1be049cdb60959e3ff51df4bcae"
+ }
+}

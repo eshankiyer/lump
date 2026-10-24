@@ -73,6 +73,7 @@ class Metrics:
             "blocked": self.blocked,
             "redacted": self.redacted,
             "avg_latency_ms": round(self.latency_sum / self.total, 3) if self.total else 0.0,
+            "ml_detections": sum(c for rule, c in self.by_rule.items() if rule.startswith("ML-")),
             "by_action": dict(self.by_action),
             "by_source": dict(self.by_source),
             "by_severity": dict(self.by_severity),

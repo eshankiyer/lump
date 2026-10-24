@@ -8,14 +8,24 @@
  *   2. Indirect-injection & beacon protection — inspect model responses as they
  *      render for hidden instructions and data-exfiltration markdown/images.
  *
- * All detection is local (detector.js). Nothing is sent anywhere unless the
- * user configures a control-plane URL in options.
+ * Detection is local: the rule set (detector.js) plus the learned classifier
+ * (ml.js + models/injection-v1.lumpml, the same model the Python engine ships).
+ * The model loads in the background; until it is ready, rules alone apply.
+ * Nothing is sent anywhere unless the user configures a control-plane URL.
  */
 
 (async function () {
   const { rules, config } = await chrome.runtime.sendMessage({ type: "getRules" });
   if (!rules || !config || !config.enabled) return;
   Lump.load(rules);
+
+  let model = null;
+  if (config.ml !== false && typeof LumpML !== "undefined") {
+    fetch(chrome.runtime.getURL("models/injection-v1.lumpml"))
+      .then((r) => r.arrayBuffer()).then((buf) => LumpML.loadModel(buf))
+      .then((m) => { model = m; })
+      .catch((e) => console.warn("[Lump] ML model unavailable, rules only:", e && e.message));
+  }
 
   const host = location.hostname;
   const service = Lump.catalogLookup(host);
@@ -59,7 +69,7 @@
     if (!config.scanPrompts) return;
     const { text } = promptText();
     if (!text || text.length < 3) return;
-    const verdict = Lump.inspect(text, { untrusted: false });
+    const verdict = Lump.inspect(text, { untrusted: false, model });
     if (verdict.action === "allow") return;
     const top = verdict.findings[0] || {};
     const what = (top.title || "Sensitive content") + " (risk " + verdict.risk + ")";
@@ -98,11 +108,11 @@
       scanned.add(node);
       const text = node.innerText || "";
       if (text.length < 8) { scanned.delete(node); continue; }
-      const verdict = Lump.inspect(text, { untrusted: true, dlp: false });
+      const verdict = Lump.inspect(text, { untrusted: true, dlp: false, model });
       if (verdict.action === "allow") continue;
       const top = verdict.findings[0] || {};
       report(verdict.action, verdict, "output");
-      if (/indirect|beacon|exfil|obfusc/i.test(top.category || "") || verdict.action === "block") {
+      if (/indirect|beacon|exfil|obfusc|\.ml$/i.test(top.category || "") || verdict.action === "block") {
         node.style.outline = "2px solid #f85149";
         node.title = "Lump: " + (top.title || "suspicious content") + " (risk " + verdict.risk + ")";
         toast("Suspicious AI response", top.title || "Possible indirect prompt injection", "#f85149");

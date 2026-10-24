@@ -21,6 +21,11 @@ and SOC already use: **MITRE ATLAS** (adversarial AI), **MITRE ATT&CK**
 Hiding an instruction from the human reader is itself treated as a signal, and
 untrusted content (documents, tool results) is scored higher than user input.
 
+Alongside the rules, a learned classifier (`ml` detector, rule ids `ML-PI` /
+`ML-JB`) scores the same content and catches reworded attacks that avoid the
+rules' vocabulary. It scores recovered hidden layers as well, so base64 or
+Unicode-tag smuggling does not hide an attack from it. See [ml.md](ml.md).
+
 ## Data loss — `dlp`
 
 Cloud/SaaS credentials (AWS, GCP, Azure, GitHub, GitLab, Slack, Stripe,

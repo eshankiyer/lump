@@ -10,7 +10,8 @@ stated" rather than "no".
 | Capability | Salience Cyber (public claims) | Lump |
 |---|---|---|
 | License / availability | Proprietary, private beta | **Apache-2.0**, install today |
-| Inspection without an LLM in the path | Yes | **Yes** — deterministic rules, sub-ms p50 |
+| Inspection without an LLM in the path | Yes | **Yes**: rules plus an on-device ML classifier, about 1 ms per prompt |
+| Learned detection of reworded attacks | Claims a proprietary "CognitionAI" engine | **Yes**: open model trained on vetted, pinned public data, with published held-out metrics and a reproducible `lump train` |
 | Browser coverage | Extension (Chrome, Chromium, Edge, Safari) | Extension (Chromium MV3; Firefox/Safari via conversion) |
 | Endpoint coverage | "System Sensor", no kernel component | **Host sensor**, no kernel component (psutil) |
 | Attribute AI connections to a process | Yes | **Yes** |
@@ -37,13 +38,17 @@ managed laptop.
 
 ## Honest limitations
 
-- **Heuristic engine.** Detection is rules, signatures and de-obfuscation, with
-  no ML classifier. Novel paraphrases can evade it. A plugin interface
-  (`lump.detectors` entry point) lets you add a local model such as a prompt-
-  injection classifier without forking.
-- **The benchmark corpus is small (77 samples) and self-authored.** The F1 it
-  reports is a regression guard, not a claim of real-world accuracy. Run your
-  own traffic through `lump bench --corpus` before trusting the numbers.
+- **The ML model is small by design.** The built-in classifier is a hashed n-gram
+  linear model, so it runs everywhere, including the browser, at about 1 ms. It
+  catches far more reworded attacks than the rules, but it has no deep
+  understanding of who an instruction is addressed to. Carefully built benign
+  look-alikes remain hard; [docs/ml.md](ml.md) and the model card give the
+  per-dataset numbers. The optional transformer backend adds a stronger second
+  opinion where its size and latency are acceptable.
+- **`lump bench` is a regression guard, not an accuracy claim.** Its 77-sample
+  corpus is self-authored. The ML model's held-out evaluation, thousands of
+  samples from datasets by other authors, is in the model card. Still, run your
+  own traffic in monitor mode before trusting any number.
 - **The gateway does not inspect streaming responses.** Requests are always
   inspected; SSE responses pass through.
 - **The proxy and DNS filter see hostnames only.** There is no TLS

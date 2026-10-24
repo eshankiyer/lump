@@ -22,5 +22,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - run: pip install -e .
-      - run: lump export-rules -o extension/rules.json
-      - run: node --test extension/test/detector.test.js
+      - name: Rules and model in the extension are current
+        run: |
+          lump export-rules -o /tmp/rules.json && diff -q /tmp/rules.json extension/rules.json
+          if [ -f src/lump/data/models/injection-v1.lumpml ]; then
+            cmp src/lump/data/models/injection-v1.lumpml extension/models/injection-v1.lumpml
+            python -m lump.ml.fixture > /tmp/ml_fixture.json && diff -q /tmp/ml_fixture.json extension/test/ml_fixture.json
+          fi
+      - run: node --test extension/test/detector.test.js extension/test/ml.test.js

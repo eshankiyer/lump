@@ -39,6 +39,20 @@ directions = ["document", "tool_result"]
 min_severity = "medium"
 ```
 
+## `[ml]`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | run the learned classifier alongside the rules |
+| `model_path` | *(bundled)* | a `.lumpml` file produced by `lump train` |
+| `warn`, `block`, `critical` | *(the model's own)* | override operating points (probabilities; omit or 0 = default) |
+| `explain` | `true` | attach the top contributing phrases to findings |
+| `max_views` | `4` | how many recovered hidden layers (base64, Unicode tags …) to score |
+| `transformer` | `false` | add the optional DeBERTa backend (`lump model pull`, `pip install 'lump[ml]'`) |
+| `transformer_dir` | `~/.cache/lump` | where `lump model pull` stored it |
+
+See [ml.md](ml.md).
+
 ## `[dlp]`
 
 | Key | Default | Meaning |

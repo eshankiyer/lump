@@ -6,6 +6,11 @@ asks, and returns a single :class:`Verdict`. It is deliberately synchronous,
 dependency-free and fast so it can sit inline on a gateway, a proxy, an
 endpoint sensor or the browser.
 
+A learned classifier (``lump.ml``) runs alongside the rules on anything a
+model will read as instructions, catching reworded attacks the patterns miss.
+It is pure standard library, bundled with the package, and can be disabled or
+pointed at a custom model through :class:`EngineConfig`.
+
 Extra detectors registered through the ``lump.detectors`` entry-point group are
 discovered and run automatically.
 """
@@ -16,6 +21,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from ..ml.detector import MLDetector, MLSettings
 from ..policy.model import Policy, default_policy
 from .agentic import AgenticDetector, AgentPolicy, ToolCall, ToolDefinition
 from .code import CodeDetector
@@ -23,7 +29,7 @@ from .dlp import DlpConfig, DlpDetector, redact
 from .injection import InjectionDetector
 from .normalize import normalize
 from .output import OutputDetector
-from .types import Action, Context, Direction, Finding, Verdict
+from .types import Action, Context, Direction, Finding, Severity, Verdict
 
 # Which detectors run for each direction. DLP runs everywhere (data can leak in
 # any direction); injection runs on anything a model will read as instructions.
@@ -47,6 +53,7 @@ class EngineConfig:
     enable_output: bool = True
     load_plugins: bool = True
     max_bytes: int = 1_000_000  # content larger than this is truncated for scanning
+    ml: MLSettings = field(default_factory=MLSettings)
 
 
 class Engine:
@@ -58,7 +65,27 @@ class Engine:
         self.code = CodeDetector() if self.config.enable_code else None
         self.output = OutputDetector() if self.config.enable_output else None
         self.agentic = AgenticDetector()
+        self.ml = self._load_ml(self.config.ml)
         self.plugins = list(self._load_plugins()) if self.config.load_plugins else []
+
+    @staticmethod
+    def _load_ml(settings: MLSettings) -> MLDetector | None:
+        if not settings.enabled:
+            return None
+        from ..ml.model import Model, default_model
+
+        if settings.model is not None:
+            model = settings.model
+        else:
+            model = Model.load(settings.model_path) if settings.model_path else default_model()
+        if model is None:
+            return None
+        transformer = None
+        if settings.transformer:
+            from ..ml.transformer import TransformerBackend
+
+            transformer = TransformerBackend(settings.transformer_dir)
+        return MLDetector(model, settings, transformer)
 
     # -- text inspection ---------------------------------------------------
 
@@ -68,10 +95,22 @@ class Engine:
         findings: list[Finding] = []
         if text:
             scan_text = text if len(text) <= self.config.max_bytes else text[: self.config.max_bytes]
+            if len(scan_text) < len(text):
+                # Never truncate silently: content past the limit is uninspected,
+                # and padding an attack past it would otherwise be an evasion.
+                findings.append(Finding(
+                    detector="engine", rule_id="ENG-TRUNC",
+                    title=f"Content exceeds the inspection limit; only the first {self.config.max_bytes} characters were inspected",
+                    severity=Severity.MEDIUM, confidence=1.0, category="engine.truncated",
+                    evidence=f"{len(text)} characters, {len(text) - len(scan_text)} uninspected",
+                    owasp=("LLM10",), metadata={"length": len(text), "inspected": len(scan_text)},
+                ))
             norm = normalize(scan_text)
 
             if self.injection and ctx.direction in _INJECTION_DIRECTIONS:
                 findings += self.injection.detect(norm, ctx)
+            if self.ml and ctx.direction in _INJECTION_DIRECTIONS:
+                findings += self.ml.detect(norm, ctx)
             if self.dlp:
                 findings += self.dlp.detect(scan_text)
             if self.code and ctx.direction in _CODE_DIRECTIONS:
@@ -103,8 +142,6 @@ class Engine:
         # Auto-redaction promotes ALLOW->REDACT only for consequential data
         # (secrets, cards, SSNs). Low-severity PII such as a bare email stays
         # visible unless a policy rule explicitly asks to redact it.
-        from .types import Severity
-
         return any(
             f.detector == "dlp" and f.metadata.get("redact", True) and f.span and f.severity >= Severity.MEDIUM
             for f in findings
@@ -121,6 +158,8 @@ class Engine:
             norm = normalize(call.arguments)
             if self.injection:
                 findings += self.injection.detect(norm, Context(direction=Direction.INPUT, trusted=False))
+            if self.ml:
+                findings += self.ml.detect(norm, Context(direction=Direction.INPUT, trusted=False))
             if self.dlp:
                 findings += self.dlp.detect(call.arguments)
             if self.code:
@@ -135,8 +174,12 @@ class Engine:
         ctx.direction = Direction.TOOL_DEFINITION
         findings = self.agentic.inspect_tool_definition(tool)
         blob = f"{tool.description}\n{tool.schema}"
-        if blob.strip() and self.injection:
-            findings += self.injection.detect(normalize(blob), ctx)
+        if blob.strip():
+            norm = normalize(blob)
+            if self.injection:
+                findings += self.injection.detect(norm, ctx)
+            if self.ml:
+                findings += self.ml.detect(norm, ctx)
         verdict = self.policy.evaluate(findings, ctx)
         verdict.latency_ms = (time.perf_counter() - start) * 1000.0
         return verdict

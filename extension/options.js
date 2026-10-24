@@ -19,13 +19,18 @@
   // Live tester
   const { rules } = await chrome.runtime.sendMessage({ type: "getRules" });
   Lump.load(rules);
+  let model = null;
+  try {
+    const buf = await (await fetch(chrome.runtime.getURL("models/injection-v1.lumpml"))).arrayBuffer();
+    model = await LumpML.loadModel(buf);
+  } catch (e) { /* rules only */ }
   const tester = document.getElementById("tester");
   const result = document.getElementById("result");
   function run() {
     const text = tester.value;
     if (!text.trim()) { result.textContent = "—"; return; }
-    const v = Lump.inspect(text, { untrusted: true });
-    result.textContent = "action=" + v.action + "  risk=" + v.risk + "\n" +
+    const v = Lump.inspect(text, { untrusted: true, model });
+    result.textContent = "action=" + v.action + "  risk=" + v.risk + (model ? "" : "  (ML model not loaded)") + "\n" +
       v.findings.map((f) => `  [${f.severity}] ${f.rule_id} ${f.title} (${f.confidence})`).join("\n");
   }
   tester.addEventListener("input", run);

@@ -60,6 +60,7 @@
     <div class="card"><div class="k">Inspections</div><div class="v" id="m-total">–</div></div>
     <div class="card block"><div class="k">Blocked</div><div class="v" id="m-blocked">–</div></div>
     <div class="card redact"><div class="k">Redacted</div><div class="v" id="m-redacted">–</div></div>
+    <div class="card"><div class="k">ML detections</div><div class="v" id="m-ml">–</div></div>
     <div class="card"><div class="k">Avg latency</div><div class="v" id="m-latency">–</div></div>
   </div>
 
@@ -134,6 +135,7 @@ async function poll(){
     $("m-total").textContent = m.total;
     $("m-blocked").textContent = m.blocked;
     $("m-redacted").textContent = m.redacted;
+    $("m-ml").textContent = m.ml_detections || 0;
     $("m-latency").textContent = (m.avg_latency_ms||0).toFixed(2) + " ms";
     $("actions").innerHTML = rows(m.by_action);
     $("rules").innerHTML = rows(m.top_rules);
