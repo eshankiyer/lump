@@ -24,7 +24,8 @@ _SEVERITY_RISK = {
 
 @dataclass
 class Rule:
-    """One decision rule. The first matching rule (highest action) wins."""
+    """One decision rule. Every rule is checked against every finding; the
+    strictest matching action wins, so rule order does not matter."""
 
     action: Action
     min_severity: Severity = Severity.INFO
@@ -34,8 +35,8 @@ class Rule:
     min_confidence: float = 0.0
     min_risk: int = 0
     untrusted: bool | None = None  # None = either; True/False = only when ctx.untrusted is that
-    # Other detectors that must also have a MEDIUM+ finding in the same
-    # inspection ("block when the rules agree").
+    # Detectors of which at least one must also have a MEDIUM+ finding in the
+    # same inspection ("block when the rules agree").
     requires: tuple[str, ...] = ()
 
     def matches(self, finding: Finding, ctx: Context, risk: int, findings: list[Finding] | None = None) -> bool:

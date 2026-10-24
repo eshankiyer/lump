@@ -20,7 +20,8 @@ client = OpenAI(base_url="http://localhost:8080/v1", api_key="…")
 Requests are inspected before they leave (prompt injection, secrets, policy);
 JSON responses are inspected before they return (output handling, leakage).
 Blocked requests return a provider-shaped `403` so SDKs surface them cleanly.
-Streaming requests are enforced on the request side and passed through. Supports
+Streaming requests are enforced on the request side; streamed (SSE) responses
+are passed through without inspection. Supports
 OpenAI, Anthropic and Google schemas; unknown shapes fall back to scanning the
 whole body. Set `fail_open = false` (default) so an internal error blocks rather
 than leaks.
@@ -44,17 +45,19 @@ indirect injection and leakage.
 ## DNS filter (agentless, network-wide shadow-AI)
 
 ```bash
-sudo lump dns -c lump.toml --port 53 --resolver 1.1.1.1:53
+sudo lump dns -c lump.toml --host 0.0.0.0 --port 53 --resolver 1.1.1.1:53
 # blocked services -> NXDOMAIN (or --sinkhole 0.0.0.0)
 ```
 
-Point your resolver/DHCP at the host. It needs only hostnames, so it works
+`--host 0.0.0.0` (or `[server] host`) makes it listen on every interface; the
+default, 127.0.0.1, answers only the local machine. Point your resolver/DHCP at
+the host. It needs only hostnames, so it works
 without any endpoint agent or TLS interception.
 
 ## Egress proxy
 
 ```bash
-lump proxy -c lump.toml --port 8888
+lump proxy -c lump.toml --host 0.0.0.0 --port 8888
 export HTTPS_PROXY=http://proxy-host:8888 HTTP_PROXY=http://proxy-host:8888
 ```
 
@@ -64,7 +67,7 @@ data boundaries, logs shadow AI. No TLS interception.
 ## Endpoint host sensor
 
 ```bash
-pip install 'lump[host]'
+pip install '.[host]'      # from a clone; or just: pip install psutil
 lump sensor -c lump.toml --watch --interval 30 --scan-artifacts ~/ai-output
 ```
 

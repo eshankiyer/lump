@@ -1,9 +1,13 @@
 # Threat coverage
 
-Every finding Lump raises carries references to the frameworks your auditors
-and SOC already use: **MITRE ATLAS** (adversarial AI), **MITRE ATT&CK**
-(intrusion tradecraft) and the **OWASP Top 10 for LLM Applications (2025)** and
-**OWASP Top 10 for Agentic Applications (2026)**.
+Every finding the Python engine raises (the injection, ML, DLP, code, agentic
+and output detectors) carries at least one reference to the frameworks your
+auditors and SOC already use: **MITRE ATLAS** (adversarial AI), **MITRE
+ATT&CK** (intrusion tradecraft), the **OWASP Top 10 for LLM Applications
+(2025)** and the **OWASP Top 10 for Agentic Applications (2026)**. The browser
+extension's in-page detector keeps only the OWASP id on its injection-rule
+findings and none on its DLP, known-jailbreak-signature and ML findings.
+Shadow-AI detections are recorded as audit events with no framework ids.
 
 ## Prompt injection & jailbreaks — `injection`
 
@@ -16,7 +20,7 @@ and SOC already use: **MITRE ATLAS** (adversarial AI), **MITRE ATT&CK**
 | Restriction/refusal suppression | "no filters", "never refuse", dual-response formats | AML.T0054 |
 | Prompt extraction | "reveal your system prompt", "repeat everything above" | AML.T0056, LLM07 |
 | Exfiltration instructions | "send the conversation to this URL", markdown image beacons | AML.T0057, AML.T0025, LLM02 |
-| Obfuscation / smuggling | invisible Unicode tags, variation selectors, bidi, homoglyphs, base64/hex/percent, spaced & leet text | AML.T0043, ATT&CK T1027 |
+| Obfuscation / smuggling | invisible Unicode tags, variation selectors, bidi, zero-width, homoglyphs, base64/hex/percent, more encoded segments than can be inspected; spaced & leet text are also de-obfuscated and scanned, but those hits carry the matched rule's refs (e.g. AML.T0051) rather than an obfuscation finding | AML.T0043, ATT&CK T1027 (OB-001..OB-007) |
 
 Hiding an instruction from the human reader is itself treated as a signal, and
 untrusted content (documents, tool results) is scored higher than user input.
@@ -36,8 +40,10 @@ database URLs and hard-coded secrets (entropy-gated to cut false positives);
 validated PII (payment cards via Luhn, IBAN via mod-97, US SSN); classification
 markings; plus three content-aware techniques:
 
-- **Exact Data Match** — salted-hash comparison, so the protected value list
-  never sits in config or memory as plaintext.
+- **Exact Data Match** — salted SHA-256 comparison; the detector holds only
+  hashes, and supplying precomputed `edm_hashes` (from `lump hash-edm`) keeps
+  the plaintext list out of config and memory entirely. Plaintext `edm_values`
+  and `edm_files` are also accepted and hashed at load.
 - **Document fingerprinting** — hashed word-shingles detect a pasted excerpt of
   a protected document even after reformatting.
 - **Source-code detection** — flags code leaving via an AI tool.
@@ -52,8 +58,9 @@ cron/scheduled tasks, SSH keys, services, shell profiles), defense evasion
 (AMSI, disabling EDR, log clearing), destructive/ransomware/anti-recovery
 actions, cryptomining and privilege escalation — plus **slopsquatting**
 detection (install commands naming packages that typo- or transposition-squat
-popular ones, caught with a Damerau edit-distance check). Maps to OWASP ASI05
-and LLM05.
+popular ones, caught with a Damerau edit-distance check). Behavioural
+signatures map to OWASP ASI05 and LLM05; slopsquatting findings (CODE-070) map
+to OWASP LLM03 and ASI04, ATLAS AML.T0010 and ATT&CK T1195.
 
 ## Agentic & tool risk — `agentic`
 
@@ -63,10 +70,14 @@ Mapped to the OWASP Agentic Top-10:
   hidden-instruction markup inside an MCP/function tool *definition*.
 - **Excessive agency** (ASI02, LLM06) — capability classification of tool calls
   (shell, filesystem-write, network, email, payment, secret-access, privileged)
-  with allow/deny lists and human-approval gates.
-- **Identity & privilege abuse** (ASI03) — denied-capability enforcement.
-- Indirect injection arriving through tool results (ASI01, ASI06) is handled by
-  the injection detector on untrusted content.
+  with allow/deny lists. Calls in approval-required capability groups (payment
+  and privileged by default) are flagged as needing human approval
+  (AG-CALL-004, a warning; Lump does not hold the call for approval).
+- **Identity & privilege abuse** (ASI03) — calls to denied tools, to tools
+  outside the allow-list, or that use a denied capability (AG-CALL-003) are
+  blocked.
+- Indirect injection arriving through tool results (ASI01) is handled by the
+  injection detector on untrusted content.
 
 ## Improper output handling — `output`
 
@@ -76,7 +87,11 @@ elements and SQL meta-characters in model output. Maps to OWASP LLM05.
 
 ## Shadow AI & data residency — catalog
 
-The DNS filter, egress proxy and host sensor classify outbound traffic against
-a catalog of 30+ AI services by hostname, attribute it (vendor, category, data
-boundary) and apply a sanctioned / unsanctioned / blocked policy — including
-blocking by data-residency region (e.g. disallow `cn`-hosted services).
+The DNS filter and egress proxy classify outbound traffic by hostname against
+a catalog of 30+ AI services, attribute it (vendor, category, data boundary)
+and enforce a sanctioned / unsanctioned / blocked policy — including blocking
+by data-residency region (e.g. disallow `cn`-hosted services). The host sensor
+applies the same classification to outbound connections on the endpoint
+(matched via resolved catalog IPs and reverse DNS) and attributes them to the
+originating process; connections to blocked services are recorded as `block`
+audit events, not stopped.

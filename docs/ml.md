@@ -12,9 +12,9 @@ There are two backends:
 |---|---|---|
 | Model | Logistic regression over hashed n-grams, trained by this project | `protectai/deberta-v3-base-prompt-injection-v2` (Apache-2.0), pinned |
 | Size | 1.6 MB, bundled in the package | about 740 MB, downloaded with `lump model pull` |
-| Dependencies | none (pure standard library) | `onnxruntime`, `tokenizers` (`pip install 'lump[ml]'`) |
+| Dependencies | none (pure standard library) | `onnxruntime`, `tokenizers` (`pip install '.[ml]'`) |
 | Latency | about 0.3 ms per typical prompt, 3 ms per 2,000 characters (CPython) | roughly 0.1–0.4 s per prompt on a 4-core CPU |
-| Runs in the browser extension | yes, same file, bit-identical scores | no |
+| Runs in the browser extension | yes, same file; scores match Python within 1e-6 (in practice, to floating-point rounding) | no |
 | Enabled by | default | `[ml] transformer = true` |
 
 ## How a verdict is formed
@@ -23,8 +23,11 @@ There are two backends:
    smuggling, variation selectors, base64, hex, percent-encoding, rot13). The
    model scores the original text, every recovered layer, and the
    homoglyph-folded, de-leeted and de-spaced forms; the highest score wins.
-   There is no cap on the number of layers, so decoy blobs placed in front of
-   a payload cannot push it out of view.
+   The detector adds no cap of its own on the layers it scores. The normaliser
+   examines up to 128 encoded segments (256K characters in total) per text, so
+   decoy blobs placed in front of a payload do not push it out of view; past
+   that budget, rule OB-007 fires, which the default policy blocks in
+   documents, tool results and tool definitions and warns on elsewhere.
 2. Long text is scored in overlapping 2,000-character windows. The most
    suspicious window decides, so a single injected paragraph in a long
    document is not diluted. Beyond `max_chars` (100,000 characters after
@@ -73,13 +76,16 @@ and adds two such warnings (F1 0.978 rules only, 0.979 with the model).
 `lump train` rebuilds the bundled model from scratch:
 
 ```bash
-pip install 'lump[train]'          # numpy + pyarrow, training only
-lump train --version 2026.10 --out injection-v1.lumpml --report report.json
+pip install '.[train]'             # numpy + pyarrow, training only (from a clone)
+lump train --hash-bits 19 --feature-dropout 0.1 --version 2026.10.1 --out injection-v1.lumpml --report report.json
 ```
 
-- **Data.** Only original public datasets are used, with licenses that allow
-  shipping derived weights (Apache-2.0, MIT, CC0, CC-BY-4.0, ODC-BY). Each was
-  vetted by two independent reviews for license, label meaning and label noise.
+- **Data.** Apart from 1,028 benign hard negatives written for this project
+  (texts that use attack vocabulary innocently, bundled under Apache-2.0 in
+  `src/lump/ml/training/data/`), only original public datasets are used, with
+  licenses that allow shipping derived weights (Apache-2.0, MIT, CC0,
+  CC-BY-4.0, ODC-BY). Each was vetted by two independent reviews for license,
+  label meaning and label noise.
   Popular aggregator datasets were rejected after an overlap analysis showed
   they are near-total copies of each other and partly built from unlicensed
   sources. Mixed-license sources are filtered row by row (for example, rows
@@ -102,7 +108,8 @@ lump train --version 2026.10 --out injection-v1.lumpml --report report.json
   swapped for a harmless span of the same shape (an HTML comment, an advisory
   JSON key, a code comment), challenge-specific strings in the LLMail-Inject
   emails are varied per row, and the near-universal wrappers of the NVIDIA
-  agentic set are replaced by varied agent-addressed cues.
+  agentic set are kept on only about a quarter of rows (and on rows without a
+  goal) and replaced by varied agent-addressed cues on the rest.
 - **Label hygiene.** Benign chat pools are filtered for jailbreaks hiding in
   them (DAN, developer-mode and override texts in ShareGPT-derived prompts);
   injections in the tool-response set are joined back to their source to drop
@@ -112,9 +119,9 @@ lump train --version 2026.10 --out injection-v1.lumpml --report report.json
   (CRC-32, signed hashing, sub-linear term frequency, L2 normalisation). It is
   trained with mini-batch Adam with early stopping on validation loss,
   temperature-calibrated, and int8-quantised per class. The export scores the
-  validation records with the float and the int8 weights and fails if any
-  probability moves by more than 0.02 or warn/block decisions disagree on more
-  than 0.5% of them.
+  first 3,000 validation records, window by window, with the float and the
+  int8 weights, and fails if any window's probability moves by more than 0.02
+  or if warn/block decisions disagree on more than 0.5% of the windows.
 
 ## Evaluation
 
@@ -155,8 +162,9 @@ transformer = false       # add the optional DeBERTa backend (lump model pull)
 Leave a key out (or set it to 0) to keep the model's own value; overrides must
 be in order (warn ≤ block ≤ critical). Start in `[policy] mode = "monitor"` on
 real traffic, review what the model flags, then tighten or relax `warn` and
-`block`. `/healthz` reports which model is actually loaded; a missing bundled
-model is logged as a warning instead of silently running rules only.
+`block`. `/healthz` (on both `lump serve` and `lump gateway`) reports which
+model is actually loaded; a missing bundled model is logged as a warning
+instead of silently running rules only.
 
 The transformer reads at most 512 tokens at a time, so Lump scores it in
 overlapping windows (head and tail within a budget). It is verified against
@@ -175,9 +183,11 @@ Swapping the backend is a matter of new pins in `src/lump/ml/transformer.py`.
 
 `extension/ml.js` is a line-for-line port of the featuriser and scorer, and
 `extension/detector.js` decodes the same hidden layers and applies the same
-policy. The extension loads the same `.lumpml` file, validates its header,
-verifies its sha256 with WebCrypto, and scores in the page. No prompt text
-leaves the browser.
+policy to ML findings. Its handling of rule findings is a simplified subset of
+the Python default policy: for example, a lone MEDIUM injection finding warns
+in Python but is allowed in the extension. The extension loads the same
+`.lumpml` file, validates its header, verifies its sha256 with WebCrypto, and
+scores in the page. No prompt text leaves the browser.
 
 Different runtimes ship different Unicode versions (Python 3.11: 14.0, 3.13:
 15.1, Node 22 and current Chrome: 16 or later), and characters added in newer

@@ -30,11 +30,21 @@ stated" rather than "no".
 | Published detection metrics | Not stated | **`lump bench`**: precision/recall/F1/latency |
 | Self-hosted control plane | Not stated | **Yes**: dashboard, API, Prometheus, JSONL audit |
 
-"Secure all networks alike" is the design goal behind the extra surfaces. The
-same engine and policy run in the browser, on the host, at the API gateway, in
-front of MCP servers, and at the network edge (DNS and proxy). An unmanaged
-device, a headless service or an autonomous agent gets the same protection as a
-managed laptop.
+"Secure all networks alike" is the design goal behind the extra surfaces: extend
+coverage beyond managed laptops. The API gateway, the MCP firewall and the
+control-plane API run the same Python engine and the configured policy. The
+browser extension runs a JavaScript port of the injection and DLP rules and the
+ML model, with the default policy's decision logic built in rather than the
+configured policy. The DNS filter, the egress proxy and the host sensor classify
+hostnames and IPs against the shared AI-service catalog and its sanctioned and
+blocked settings, and the sensor also scans artifacts with the code detector.
+They do not run the content engine or the policy, including its monitor mode.
+So an unmanaged device behind the DNS filter or egress proxy gets
+hostname-level shadow-AI governance (AI services are discovered, logged and
+blocked by catalog and data-boundary policy) but no prompt, DLP or injection
+inspection. Headless services and autonomous agents get content inspection when
+their model traffic goes through the LLM gateway, their MCP servers are wrapped
+by the MCP firewall, or they call the inspection API.
 
 ## Honest limitations
 
@@ -50,8 +60,11 @@ managed laptop.
   corpus is self-authored. The ML model's held-out evaluation, thousands of
   samples from datasets by other authors, is in the model card. Still, run your
   own traffic in monitor mode before trusting any number.
-- **The gateway does not inspect streaming responses.** Requests are always
-  inspected; SSE responses pass through.
+- **The gateway does not inspect streaming responses.** JSON request bodies are
+  inspected whether or not they ask for streaming. Requests whose body is not a
+  JSON object (compressed, non-JSON, or a JSON array) and GET requests are
+  forwarded without inspection. SSE responses pass through uninspected, and the
+  gateway buffers them until the upstream finishes.
 - **The proxy and DNS filter see hostnames only.** There is no TLS
   interception, so content inspection for web apps happens in the browser
   extension or at the gateway.
@@ -59,10 +72,10 @@ managed laptop.
   relies on resolved IPs and reverse DNS, and shared CDN addresses can blur
   which AI service a connection belongs to.
 - **Throughput.** In pure Python the engine scans roughly 400 KB/s per thread with
-  rules only and about 220 KB/s with the ML layer; a typical prompt takes under
-  a millisecond either way.
-  Typical prompts take well under a millisecond, while megabyte-sized documents
-  take seconds. `engine.max_bytes` caps the cost.
+  rules only and about 220 KB/s with the ML layer. Typical prompts take well
+  under a millisecond with rules only and roughly 0.5-2 ms with the ML layer (on
+  by default), depending on length, while megabyte-sized documents take
+  seconds. `engine.max_bytes` caps the cost.
 - **Browser support.** The extension is Chromium Manifest V3. Safari needs
   `xcrun safari-web-extension-converter`, and Firefox needs minor manifest
   changes.

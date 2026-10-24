@@ -9,8 +9,9 @@ extension/models/injection-v1.lumpml)
 The model weights were trained on the public datasets below, each used under
 its license. Datasets under CC-BY-4.0 and ODC-BY are attributed here as those
 licenses require; no dataset text is redistributed in this repository except
-the small reworded-attack sets written for this project
-(src/lump/ml/training/data/, Apache-2.0). Exact revisions and file hashes are
+the small sets written for this project (src/lump/ml/training/data/,
+Apache-2.0): benign hard negatives used in training, and an evaluation set of
+reworded attacks plus hard negatives. Exact revisions and file hashes are
 pinned in src/lump/ml/training/sources.lock.json.
 
 - deepset/prompt-injections (apache-2.0), training: https://huggingface.co/datasets/deepset/prompt-injections
