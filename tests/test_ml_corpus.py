@@ -152,3 +152,20 @@ def test_chat_pool_lookalikes_of_attacks_are_dropped_but_twins_kept(monkeypatch)
     texts = {r.text for name in ("train", "val", "test_id") for r in splits[name]}
     assert jb + " please" not in texts and "plan a three day trip to lisbon with kids" in texts
     assert jb + " today" in texts and jb in texts
+
+
+def test_benign_uses_of_attack_words_are_hard_negatives():
+    rows = [{"role": "prompter", "text": "Please summarise the previous email thread for me."},
+            {"role": "prompter", "text": "What's the capital of Peru?"}]
+    out = list(corpus.READERS["oasst2"](rows, "x"))
+    assert [r.kind for r in out] == ["hard_negative", "benign"]
+
+
+def test_llmail_benign_fp_emails_are_read_from_json(tmp_path):
+    import json
+
+    path = tmp_path / "data__emails_for_fp_tests.json"
+    path.write_text(json.dumps(["Subject of the email: Project Zenith: Kickoff.   Body: Team, the kickoff is on Monday. Regards, Emily"]))
+    out = list(corpus.READERS["llmail"](corpus._rows([path]), "x"))
+    assert len(out) == 1 and out[0].label == 0 and out[0].kind == "hard_negative"
+    assert out[0].text.endswith("Regards, Emily") and "Zenith" not in out[0].text

@@ -75,7 +75,7 @@ SOURCES: tuple[Source, ...] = (
            notes="Role-play 'act as' prompts: hard negatives for persona-style jailbreak detection."),
     # --- indirect / agentic injections and benign technical pools (round 2) -------
     Source("microsoft/llmail-inject-challenge", "mit", "train", "llmail", "1063bdf01ec8762b812d5e06ee768a06faa5a6f7", max_rows=9000,
-           notes="Attacker emails from Microsoft's LLMail-Inject challenge (SaTML 2025): indirect injections planted in email an assistant reads. Deduplicated, capped per team, challenge-specific goal strings varied."),
+           notes="Attacker emails from Microsoft's LLMail-Inject challenge (SaTML 2025): indirect injections planted in email an assistant reads. Deduplicated, capped per team, challenge-specific goal strings varied. The challenge's 203 benign false-positive test emails are hard negatives."),
     Source("rgeada/tool-response-injections", "apache-2.0", "train", "tool_response_injections", "39050de797f2694f0d72e1086003154de1919379",
            notes="Paired tool responses with and without a planted injection. Injections are joined back to neuralchemy: its benign edge cases, research-only and harmful-request rows, and a builder artifact are dropped."),
     Source("Aditi20/tool-guardrail-dataset", "apache-2.0", "train", "tool_guardrail", "6525096f357ca206f59d3e7f0949267ecc96d1ec",

@@ -99,9 +99,16 @@ def _sha256(path: Path) -> str:
 
 
 def _rows(paths: list[Path]) -> Iterator[dict]:
-    import pyarrow.parquet as pq
+    """Rows of every shard: parquet, or a JSON list (strings become {"text": ...})."""
 
     for path in paths:
+        if path.suffix == ".json":
+            data = json.loads(path.read_text("utf-8"))
+            for item in data if isinstance(data, list) else []:
+                yield item if isinstance(item, dict) else {"text": item, "_file": path.name}
+            continue
+        import pyarrow.parquet as pq
+
         for batch in pq.ParquetFile(path).iter_batches(batch_size=4096):
             yield from batch.to_pylist()
 
@@ -310,7 +317,7 @@ def _jailbreaks_over_time(rows, src):
             attack = int(r["label"]) == 1
             if not attack and not _benign_ok(text):  # WildChat "benign" rows that are jailbreaks
                 continue
-            yield Record(text, int(attack), "jailbreak" if attack else "benign", src)
+            yield Record(text, int(attack), "jailbreak" if attack else _chat_kind(text), src)
 
 
 
@@ -348,6 +355,15 @@ def _llmail(rows, src):
     seen: set[str] = set()
     per_team: Counter = Counter()
     for r in rows:
+        if r.get("_file") == "data__emails_for_fp_tests.json":
+            # The challenge's own benign scenario emails: same business setting,
+            # same project names, no instruction for the assistant.
+            m = re.match(r"\s*Subject of the email:\s*(.*?)\.?\s{2,}Body:\s*(.*)", r.get("text") or "", re.S)
+            text = _clean(f"{m.group(1).strip()}\n\n{m.group(2).strip()}" if m else r.get("text"))
+            if text:
+                k = text_key(text)
+                yield Record(_LLMAIL_PROJECT.sub(_pick(_PROJECTS, k + "p"), text), BENIGN, "hard_negative", src)
+            continue
         if (r.get("objectives") or "{}").strip() == "{}":
             continue
         body = (r.get("body") or "").strip()
@@ -565,6 +581,18 @@ def _benign_ok(text: str) -> bool:
     return not _BENIGN_GUARD.search(text)
 
 
+# Ordinary uses of words attacks lean on ("the previous email", "ignore the
+# typos", "follow the instructions", "act as a tutor"). Benign chat-pool rows
+# containing them are tagged hard negatives: preferred when a pool is sampled
+# down and up-weighted, so the words alone stop meaning "attack".
+_TRAP_RE = re.compile(r"\b(?:ignor\w*|disregard\w*|previous\w*|prior|earlier|forget\w*|overrid\w*|instruction\w*|"
+                      r"bypass\w*|pretend\w*|act as|system prompt|reveal\w*)\b", re.I)
+
+
+def _chat_kind(text: str) -> str:
+    return "hard_negative" if _TRAP_RE.search(text) else "benign"
+
+
 # Code-task generators open almost every problem with the same clause ("You
 # are tasked with ...", "You are given ..."), which no attack uses: left as is
 # it becomes a free "benign" cue an attacker could borrow. Rewritten to
@@ -623,7 +651,7 @@ def _helpsteer(rows, src):
             continue
         text = _clean(re.split(r"<extra_id_1>", prompt, maxsplit=1)[0])
         if text and len(text) <= 4000 and _benign_ok(text) and not _SHAREGPT_JAILBREAK.search(text):
-            yield Record(text, BENIGN, "hard_negative" if _DEV_HARD_RE.search(text) else "benign", src)
+            yield Record(text, BENIGN, "hard_negative" if _DEV_HARD_RE.search(text) else _chat_kind(text), src)
 
 
 def _oasst2(rows, src):
@@ -632,21 +660,21 @@ def _oasst2(rows, src):
             continue
         text = _clean(r.get("text"))
         if text and _benign_ok(text):
-            yield Record(text, BENIGN, "benign", src)
+            yield Record(text, BENIGN, _chat_kind(text), src)
 
 
 def _ultrachat(rows, src):
     for r in rows:
         text = _clean(r.get("prompt"))
         if text and _benign_ok(text):
-            yield Record(text, BENIGN, "benign", src)
+            yield Record(text, BENIGN, _chat_kind(text), src)
 
 
 def _openorca(rows, src):
     for r in rows:
         text = _clean(r.get("question"))
         if text and len(text) <= 4000 and _benign_ok(text):
-            yield Record(text, BENIGN, "benign", src)
+            yield Record(text, BENIGN, _chat_kind(text), src)
 
 
 def _awesome_prompts(rows, src):
