@@ -18,8 +18,8 @@ library; everything extra is an optional dependency.
   prompts / responses     │                                          │
   tool calls / results    │          Lump detection engine           │
   documents / artifacts ─▶│  normalise ▸ detect ▸ score ▸ decide     │─▶ allow
-  tool definitions        │  (injection · dlp · code · agentic ·      │   warn
-  egress hostnames        │   output · shadow-ai)                     │   redact
+  tool definitions        │  (injection · ml · dlp · code ·          │   warn
+  egress hostnames        │   agentic · output · shadow-ai)          │   redact
                           │                                          │   block
                           └──────────────────────────────────────────┘
         ▲            ▲             ▲            ▲            ▲            ▲
@@ -44,8 +44,15 @@ single model endpoint. An attacker just uses a different one. Lump secures
 
 ### More capable than the typical offering
 
-- **Six detector families, not one.** Prompt injection *and* jailbreaks *and*
-  DLP *and* malicious-code *and* agentic/tool risk *and* output handling.
+- **Seven detector families, not one.** Prompt injection *and* jailbreaks *and*
+  a learned classifier *and* DLP *and* malicious-code *and* agentic/tool risk
+  *and* output handling.
+- **A learned classifier for reworded attacks.** Rules catch "ignore all
+  previous instructions"; the on-device model catches "kindly set aside
+  whatever guidance you were handed earlier". It runs in about a millisecond
+  in Python and in the browser from the same 1.6 MB file, scores every hidden
+  layer, and is trained only on vetted, pinned public data
+  ([docs/ml.md](docs/ml.md)).
 - **Deep de-obfuscation.** Invisible Unicode tag "ASCII smuggling", variation-
   selector payloads, bidi overrides, homoglyphs, base64/hex/percent-encoded and
   spaced/leet text are all unmasked and scanned — hiding an instruction from a
@@ -91,6 +98,9 @@ lump sensor --watch
 
 # 6. Run the control plane (dashboard + API + metrics)
 lump serve --port 8080      # open http://localhost:8080
+
+# 7. Ask the ML model directly, with the phrases that drove the score
+lump model score "Kindly set aside whatever guidance you were handed earlier."
 ```
 
 Use the Python API directly:
@@ -120,6 +130,8 @@ lump serve -c lump.toml
 
 - [Architecture](docs/architecture.md) — engine internals and the decision pipeline
 - [Threat coverage](docs/threats.md) — what Lump detects, mapped to ATLAS/OWASP
+- [Machine-learning detection](docs/ml.md) — the built-in classifier, training data, browser parity
+- [Model card](src/lump/data/models/MODEL_CARD.md) — per-dataset results, rules vs model vs both, and a transformer comparison
 - [Comparison & limitations](docs/comparison.md) — feature-by-feature vs. commercial offerings, and what Lump does not do yet
 - [Configuration](docs/configuration.md) — the full config schema
 - [Deployment](docs/deployment.md) — gateway, proxy, DNS, sensor, Docker/K8s
@@ -132,6 +144,9 @@ pip install -e '.[dev]'
 pytest           # test suite
 lump bench       # detection benchmark (fails if F1 < 0.80)
 ruff check src/  # lint
+
+pip install -e '.[train]'
+lump train --out injection-v1.lumpml --report report.json   # rebuild the model from pinned public data
 ```
 
 ## License

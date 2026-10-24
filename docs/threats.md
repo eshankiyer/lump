@@ -23,8 +23,10 @@ untrusted content (documents, tool results) is scored higher than user input.
 
 Alongside the rules, a learned classifier (`ml` detector, rule ids `ML-PI` /
 `ML-JB`) scores the same content and catches reworded attacks that avoid the
-rules' vocabulary. It scores recovered hidden layers as well, so base64 or
-Unicode-tag smuggling does not hide an attack from it. See [ml.md](ml.md).
+rules' vocabulary. It also scores every recovered hidden layer and the
+homoglyph-folded, de-leeted and de-spaced forms, so base64, Unicode-tag
+smuggling, look-alike letters, leetspeak or s p a c e d text do not hide an
+attack from it. See [ml.md](ml.md).
 
 ## Data loss — `dlp`
 

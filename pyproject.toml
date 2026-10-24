@@ -42,7 +42,7 @@ lump = "lump.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-lump = ["data/*.json", "data/*.toml", "data/corpus/*.jsonl", "data/models/*.lumpml", "data/models/*.md", "ml/training/*.json", "server/static/*"]
+lump = ["data/*.json", "data/*.toml", "data/corpus/*.jsonl", "data/models/*.lumpml", "data/models/*.md", "ml/training/*.json", "ml/training/data/*.jsonl", "server/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

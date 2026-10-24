@@ -29,6 +29,16 @@ action = "redact"
 detectors = ["dlp"]
 categories = ["corp.source_code"]
 
+[ml]
+# The built-in learned classifier (see docs/ml.md). Operating points come from
+# the model file; override them only after reviewing flagged traffic.
+enabled = true
+explain = true
+# warn = 0.80
+# block = 0.95
+# model_path = "models/my-retrained.lumpml"   # relative to this file
+# transformer = true                          # optional DeBERTa backend: pip install 'lump[ml]' && lump model pull
+
 [dlp]
 detect_source_code = true
 # Protected keywords (project code names, etc.)
