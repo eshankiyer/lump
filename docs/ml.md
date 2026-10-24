@@ -198,6 +198,23 @@ The model file's checksum detects corruption, not tampering: anyone who can
 write the file can rewrite its header too, so protect the install as you would
 any other code.
 
+## Where the model goes next
+
+An independent design review of this model, with measured prototypes, points
+to these improvements for a next version:
+
+- A cheaper featuriser: the current one costs about 3.7 ms per 2,000
+  characters in CPython; a prototype with fewer character n-gram sizes ran in
+  about 1.1 ms with a larger hash space.
+- Content-word and skip bigrams, so filler words inserted inside an attack
+  phrase hurt less.
+- Splitting train/validation by template cluster rather than by text, and
+  setting operating points by per-source false-positive rate, so one large
+  benign pool cannot dominate the thresholds.
+- Keeping the transformer out of the training loss and using it only to audit
+  labels, so its false positives on role-play and security text are not
+  distilled into the small model.
+
 ## Bringing your own model
 
 Any `.lumpml` file produced by `lump train` (for example, retrained with your
