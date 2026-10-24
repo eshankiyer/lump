@@ -17,18 +17,21 @@ apply. A complete annotated example is in [`examples/lump.toml`](../examples/lum
 | Key | Default | Meaning |
 |---|---|---|
 | `name` | `"custom"` | label shown in verdicts and audit |
-| `mode` | `"enforce"` | `enforce`, `monitor` (log, never block), or `off` |
+| `mode` | `"enforce"` | `enforce`; `monitor` (record and warn, never block or rewrite); `off` (report findings, enforce nothing) |
 | `block_risk` | `80` | risk ≥ this blocks by default |
 | `warn_risk` | `40` | risk ≥ this warns by default |
 | `redact_secrets` | `true` | auto-redact medium+ DLP findings |
 | `default_action` | `"allow"` | action when nothing matches |
+| `fallback_excludes` | `["ml"]` | detectors left out of the `block_risk`/`warn_risk` fallback (the ML layer acts only through its explicit rules) |
 | `extend_default` | `true` | keep the built-in rules and add `[[policy.rules]]` below |
 
 ### `[[policy.rules]]`
 
 Ordered; the strictest matching action wins. Fields: `action`
 (`allow`/`warn`/`redact`/`block`), `detectors`, `categories` (prefix match),
-`directions`, `min_severity`, `min_confidence`, `min_risk`.
+`directions`, `min_severity`, `min_confidence`, `min_risk`, `untrusted`
+(`true`/`false`: match only content of that trust), and `requires` (other
+detectors that must also have a medium+ finding in the same inspection).
 
 ```toml
 [[policy.rules]]
@@ -37,6 +40,14 @@ detectors = ["injection"]
 categories = ["prompt_injection.indirect"]
 directions = ["document", "tool_result"]
 min_severity = "medium"
+
+# Block a HIGH learned-classifier score on direct input when an injection rule agrees
+# (this one is built in; shown as an example of `requires`).
+[[policy.rules]]
+action = "block"
+detectors = ["ml"]
+min_severity = "high"
+requires = ["injection"]
 ```
 
 ## `[ml]`
@@ -44,12 +55,12 @@ min_severity = "medium"
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | `true` | run the learned classifier alongside the rules |
-| `model_path` | *(bundled)* | a `.lumpml` file produced by `lump train` |
-| `warn`, `block`, `critical` | *(the model's own)* | override operating points (probabilities; omit or 0 = default) |
+| `model_path` | *(bundled)* | a `.lumpml` file produced by `lump train` (relative to this config file) |
+| `warn`, `block`, `critical` | *(the model's own)* | override operating points (probabilities; omit or 0 = default; must be in order) |
 | `explain` | `true` | attach the top contributing phrases to findings |
-| `max_views` | `4` | how many recovered hidden layers (base64, Unicode tags …) to score |
+| `max_chars` | `100000` | scoring budget per view; longer text is scored head + tail (the rules still scan all of it) |
 | `transformer` | `false` | add the optional DeBERTa backend (`lump model pull`, `pip install 'lump[ml]'`) |
-| `transformer_dir` | `~/.cache/lump` | where `lump model pull` stored it |
+| `transformer_dir` | `~/.cache/lump` | where `lump model pull` stored it (relative to this config file) |
 
 See [ml.md](ml.md).
 

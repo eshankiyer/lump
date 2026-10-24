@@ -84,3 +84,18 @@ def rule_flags(records: list[Record]) -> list[bool]:
         injection_like = any(f.detector in ("injection", "agentic", "output") for f in verdict.findings)
         out.append(verdict.action.value != "allow" and injection_like)
     return out
+
+
+def transformer_scores(records: list[Record], backend, batch: int = 32) -> list[float]:
+    """The optional transformer's attack probability per record (max over its windows)."""
+
+    out: list[float] = []
+    for i in range(0, len(records), batch):
+        chunk = [backend.windows(r.text) for r in records[i : i + batch]]
+        flat = [w for wins in chunk for w in wins]
+        probs = backend.score_batch(flat) if flat else []
+        k = 0
+        for wins in chunk:
+            out.append(max(probs[k : k + len(wins)], default=0.0))
+            k += len(wins)
+    return out

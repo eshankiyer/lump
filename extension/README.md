@@ -10,8 +10,14 @@ DeepSeek, Mistral, Grok, Perplexity, Poe, Copilot, Character.AI).
 
 All detection runs in the page: the same rule set as the Python engine plus
 the same on-device ML classifier (`ml.js` loading `models/injection-v1.lumpml`,
-checksum-verified). Scores match the Python engine to within 1e-6. The model
-loads in the background; until it is ready, rules alone apply.
+checksum-verified). The browser decodes the same hidden layers as the server
+(Unicode tags, variation selectors, base64, hex, percent-encoding, rot13,
+leetspeak, spaced-out letters) and applies the same policy, so a prompt gets
+the same score and the same ML verdict in both places; CI checks this on a
+shared fixture. The model loads in the background; until it is ready, rules
+alone apply, and responses already on the page are rescanned once it loads.
+The model file is readable only from the AI sites listed above, through a
+per-session URL, so other pages cannot use it to detect the extension.
 Nothing leaves the browser unless you set a control-plane URL. If you do, only
 the verdict, risk score, rule ids and **hostname** are sent. The prompt text
 and the full URL are never sent.
@@ -22,7 +28,11 @@ and the full URL are never sent.
 |---|---|
 | `warn` (default) | The first send is held with an explanation. Sending again proceeds. |
 | `block` | Policy blocks cannot be overridden. Lower-risk findings still warn. |
-| `monitor` | Never interferes, only records. |
+| `monitor` | Never interferes: no held sends, no outlines, no stripped images. Only records. |
+
+On model responses, a learned-classifier score alone warns; it does not block or
+strip images. Images are neutralised when a response is blocked or looks like an
+exfiltration attempt.
 
 ## Install (developer mode)
 
@@ -42,7 +52,8 @@ Python's probabilities:
 
 ```bash
 cp src/lump/data/models/injection-v1.lumpml extension/models/
-python -m lump.ml.fixture > extension/test/ml_fixture.json
+python -m lump.ml.fixture > extension/test/ml_fixture.json     # bundled model
+python -m lump.ml.fixture --tiny extension/test                # tiny model, always tested
 node --test extension/test/detector.test.js extension/test/ml.test.js
 ```
 

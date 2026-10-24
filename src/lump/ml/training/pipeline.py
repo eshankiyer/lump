@@ -37,17 +37,28 @@ def bundled_records(name: str, source: str) -> list[Record]:
 
 @dataclass
 class EvalRow:
+    """Metrics for one evaluation set.
+
+    ``rules`` / ``ensemble`` treat every text as the user's own input;
+    ``*_doc`` treat every text as untrusted third-party content (a document
+    or tool result), where the default policy is stricter. ``ml_*`` are the
+    model alone (context-free) at its warn and block points.
+    """
+
     name: str
     rules: dict
     ml_warn: dict
     ml_block: dict
     ensemble: dict
     ensemble_block: dict
+    rules_doc: dict
+    ensemble_doc: dict
+    ensemble_doc_block: dict
     by_kind: dict
 
 
 def evaluate_all(splits: dict[str, list[Record]], model, log=print) -> list[EvalRow]:
-    """Rules alone vs ML alone vs the full engine, per evaluation set."""
+    """Rules alone vs ML alone vs the full engine, per evaluation set, as input and as untrusted content."""
 
     from ...engine.engine import Engine, EngineConfig
     from ...engine.types import Context, Direction
@@ -56,6 +67,12 @@ def evaluate_all(splits: dict[str, list[Record]], model, log=print) -> list[Eval
     rules_engine = Engine(config=EngineConfig(ml=MLSettings(enabled=False), load_plugins=False))
     full_engine = Engine(config=EngineConfig(ml=MLSettings(model=model), load_plugins=False))
     injection_like = {"injection", "agentic", "output", "ml"}
+    contexts = {"input": Context(direction=Direction.INPUT), "doc": Context(direction=Direction.DOCUMENT)}
+
+    def flagged(v) -> tuple[bool, bool]:
+        hit = any(f.detector in injection_like for f in v.findings)
+        return v.action.value != "allow" and hit, v.action.value == "block" and hit
+
     rows = []
     names = [n for n in splits if n not in ("train", "val")]
     for name in names:
@@ -64,50 +81,56 @@ def evaluate_all(splits: dict[str, list[Record]], model, log=print) -> list[Eval
             continue
         t0 = time.time()
         labels = labels_of(recs)
-        rule_f, ens_f, ens_b, scores = [], [], [], []
+        res = {k: {"rules": [], "flag": [], "block": []} for k in contexts}
+        scores = []
         for r in recs:
-            direction = Direction.DOCUMENT if r.kind == "indirect" else Direction.INPUT
-            ctx = Context(direction=direction)
-            rv = rules_engine.inspect(r.text, ctx)
-            rule_f.append(rv.action.value != "allow" and any(f.detector in injection_like for f in rv.findings))
-            fv = full_engine.inspect(r.text, ctx)
-            hit = any(f.detector in injection_like for f in fv.findings)
-            ens_f.append(fv.action.value != "allow" and hit)
-            ens_b.append(fv.action.value == "block" and hit)
-            ml = next((f for f in fv.findings if f.detector == "ml"), None)
+            ml = None
+            for key, ctx in contexts.items():
+                res[key]["rules"].append(flagged(rules_engine.inspect(r.text, ctx))[0])
+                fv = full_engine.inspect(r.text, ctx)
+                f, b = flagged(fv)
+                res[key]["flag"].append(f)
+                res[key]["block"].append(b)
+                ml = ml or next((x for x in fv.findings if x.detector == "ml"), None)
             scores.append(ml.confidence if ml else model.score(r.text).p_attack)
         th = model.thresholds
-        ml_w = [s >= th["warn"] for s in scores]
-        ml_b = [s >= th["block"] for s in scores]
+        ml_w = [x >= th["warn"] for x in scores]
+        ml_b = [x >= th["block"] for x in scores]
         kinds = sorted({r.kind for r in recs if r.label == 1})
         by_kind = {}
         for k in kinds:
             idx = [i for i, r in enumerate(recs) if r.kind == k and r.label == 1]
             by_kind[k] = {
                 "n": len(idx),
-                "rules": round(sum(rule_f[i] for i in idx) / len(idx), 4),
+                "rules": round(sum(res["input"]["rules"][i] for i in idx) / len(idx), 4),
                 "ml": round(sum(ml_w[i] for i in idx) / len(idx), 4),
-                "ensemble": round(sum(ens_f[i] for i in idx) / len(idx), 4),
+                "ensemble": round(sum(res["input"]["flag"][i] for i in idx) / len(idx), 4),
+                "ensemble_doc_block": round(sum(res["doc"]["block"][i] for i in idx) / len(idx), 4),
             }
         row = EvalRow(
             name=name,
-            rules=binary_metrics(rule_f, labels).__dict__,
+            rules=binary_metrics(res["input"]["rules"], labels).__dict__,
             ml_warn=binary_metrics(ml_w, labels, scores).__dict__,
             ml_block=binary_metrics(ml_b, labels, scores).__dict__,
-            ensemble=binary_metrics(ens_f, labels).__dict__,
-            ensemble_block=binary_metrics(ens_b, labels).__dict__,
+            ensemble=binary_metrics(res["input"]["flag"], labels).__dict__,
+            ensemble_block=binary_metrics(res["input"]["block"], labels).__dict__,
+            rules_doc=binary_metrics(res["doc"]["rules"], labels).__dict__,
+            ensemble_doc=binary_metrics(res["doc"]["flag"], labels).__dict__,
+            ensemble_doc_block=binary_metrics(res["doc"]["block"], labels).__dict__,
             by_kind=by_kind,
         )
         rows.append(row)
         log(f"  {name[:48]:48} n={len(recs):6}  recall rules={row.rules['recall']:.3f} ml={row.ml_warn['recall']:.3f} "
             f"ens={row.ensemble['recall']:.3f} | FPR rules={row.rules['fpr']:.3f} ml={row.ml_warn['fpr']:.3f} "
-            f"ens={row.ensemble['fpr']:.3f} | AUC={row.ml_warn['auc']:.4f}  ({time.time() - t0:.0f}s)")
+            f"ens={row.ensemble['fpr']:.3f} | as document: block recall={row.ensemble_doc_block['recall']:.3f} "
+            f"FPR={row.ensemble_doc_block['fpr']:.3f} | AUC={row.ml_warn['auc']:.4f}  ({time.time() - t0:.0f}s)")
     return rows
 
 
 def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, corpus_cache: Path | None = None,
         hash_bits: int = 19, epochs: int = 12, version: str = "dev", workers: int = 4, log=print,
-        weight_decay: float = 1e-6, feature_dropout: float = 0.0, card: Path | None = None) -> dict:
+        weight_decay: float = 1e-6, feature_dropout: float = 0.0, card: Path | None = None,
+        from_weights: Path | None = None, compare_transformer: str | None = None) -> dict:
     from ..model import Model
     from .export import export
 
@@ -124,16 +147,25 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
             corpus.save(splits, corpus_cache)
     cfg = TrainConfig(features=FeatureConfig(hash_bits=hash_bits), epochs=epochs, workers=workers,
                       weight_decay=weight_decay, feature_dropout=feature_dropout)
-    log(f"training: {len(splits['train'])} train / {len(splits['val'])} val records, 2^{hash_bits} features")
-    result = train(splits["train"], splits["val"], cfg, log=log)
-    # Keep the float weights so a failed export never costs a training run.
     import numpy as np
 
-    raw = out.with_suffix(".float.npz")
-    raw.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(raw, W=result["W"], b=result["b"], temperature=result["temperature"],
-                        thresholds=json.dumps(result["thresholds"]), class_counts=json.dumps(result["class_counts"]))
-    log(f"saved float weights to {raw}")
+    if from_weights:
+        # Re-evaluate / re-export a finished run without retraining.
+        with np.load(from_weights) as z:
+            result = {"W": z["W"], "b": z["b"], "temperature": float(z["temperature"]),
+                      "thresholds": json.loads(str(z["thresholds"])), "class_counts": json.loads(str(z["class_counts"]))}
+        if result["W"].shape[0] != 1 << hash_bits:
+            raise ValueError(f"{from_weights} has {result['W'].shape[0]} feature rows; pass the --hash-bits it was trained with")
+        log(f"loaded float weights from {from_weights}")
+    else:
+        log(f"training: {len(splits['train'])} train / {len(splits['val'])} val records, 2^{hash_bits} features")
+        result = train(splits["train"], splits["val"], cfg, log=log)
+        # Keep the float weights so a failed export never costs a training run.
+        raw = out.with_suffix(".float.npz")
+        raw.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(raw, W=result["W"], b=result["b"], temperature=result["temperature"],
+                            thresholds=json.dumps(result["thresholds"]), class_counts=json.dumps(result["class_counts"]))
+        log(f"saved float weights to {raw}")
 
     check = splits["val"][:3000]
     blob = export(result, cfg.features, metrics={}, version=version, augment_count=len(augment), check_records=check)
@@ -150,6 +182,8 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
     log(f"wrote {out} ({len(blob) / 1e6:.2f} MB)")
     summary = {"model": str(out), "bytes": len(blob), "thresholds": result["thresholds"],
                "temperature": result["temperature"], "evaluation": [r.__dict__ for r in rows]}
+    if compare_transformer:
+        summary["transformer"] = compare_with_transformer(splits, rows, compare_transformer, log)
     if report:
         report.write_text(json.dumps(summary, indent=1) + "\n")
     if card:
@@ -157,3 +191,26 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
 
         card.write_text(render(summary, model.header) + "\n")
     return summary
+
+
+def compare_with_transformer(splits: dict[str, list[Record]], rows: list[EvalRow], base: str, log=print) -> dict:
+    """Score every out-of-distribution set with the optional DeBERTa backend
+    (same texts, full sets) so the model card can compare the two honestly."""
+
+    from ..transformer import DEFAULT_THRESHOLDS, TransformerBackend
+    from .evaluate import transformer_scores
+
+    backend = TransformerBackend(base, threads=4)
+    out = {"model": backend.model_id, "thresholds": DEFAULT_THRESHOLDS, "sets": {}}
+    for row in rows:
+        if row.name == "test_id":  # in-distribution for Lump only: not a fair comparison
+            continue
+        t0 = time.time()
+        recs = splits[row.name]
+        scores = transformer_scores(recs, backend)
+        labels = labels_of(recs)
+        m = binary_metrics([x >= DEFAULT_THRESHOLDS["warn"] for x in scores], labels, scores)
+        out["sets"][row.name] = {"n": m.n, "auc": round(m.auc, 4), "recall": round(m.recall, 4), "fpr": round(m.fpr, 4)}
+        log(f"  transformer {row.name[:48]:48} AUC={m.auc:.4f} recall={m.recall:.3f} FPR={m.fpr:.3f}  "
+            f"(Lump ML AUC={row.ml_warn['auc']:.4f})  ({time.time() - t0:.0f}s)")
+    return out

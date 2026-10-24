@@ -20,6 +20,8 @@ import unicodedata
 import zlib
 from dataclasses import dataclass
 
+from . import unassigned
+
 # Characters removed before featurisation (mirrors engine.normalize, and the
 # list is exported to JS). Kept local so the ML feature space never changes
 # silently when the rule engine's normaliser evolves.
@@ -32,6 +34,7 @@ _TAGS_VS_RE = re.compile("[\U000e0000-\U000e007f\ufe00-\ufe0f\U000e0100-\U000e01
 # Unpaired surrogates (possible after JSON decoding) cannot be UTF-8 encoded;
 # JS TextEncoder turns them into U+FFFD, so do the same up front.
 _SURROGATE_RE = re.compile("[\ud800-\udfff]")
+_UNASSIGNED_RE = unassigned.pattern()
 # Explicit whitespace class: Python's and JavaScript's \s differ at the edges.
 _WS_CLASS = "\t\n\x0b\x0c\r \x1c-\x1f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000"
 _WS_RE = re.compile(f"[{_WS_CLASS}]+")
@@ -87,7 +90,8 @@ class FeatureConfig:
 def normalize(text: str, digits_to_zero: bool = True) -> str:
     """Canonical lower-case form used for features (NFKC, invisibles removed)."""
 
-    text = _SURROGATE_RE.sub("�", text)
+    text = _SURROGATE_RE.sub("\ufffd", text)
+    text = _UNASSIGNED_RE.sub("\ufffd", text)  # see unassigned.py: same folding on every runtime
     text = unicodedata.normalize("NFKC", text)
     text = _INVISIBLE_RE.sub("", text)
     text = _TAGS_VS_RE.sub("", text)

@@ -264,6 +264,8 @@ def cmd_train(args) -> int:
         corpus_cache=Path(args.corpus_cache) if args.corpus_cache else None,
         hash_bits=args.hash_bits, epochs=args.epochs, version=args.version, workers=args.workers,
         weight_decay=args.weight_decay, feature_dropout=args.feature_dropout,
+        from_weights=Path(args.from_weights) if args.from_weights else None,
+        compare_transformer=args.compare_transformer,
         card=Path(args.card) if args.card else None,
     )
     print(f"model written to {summary['model']} ({summary['bytes'] / 1e6:.2f} MB)")
@@ -374,6 +376,9 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--weight-decay", type=float, default=1e-6)
     tr.add_argument("--feature-dropout", type=float, default=0.0)
     tr.add_argument("--card", help="write the Markdown model card here")
+    tr.add_argument("--from-weights", help="skip training: evaluate and export a saved .float.npz from an earlier run")
+    tr.add_argument("--compare-transformer", metavar="DIR",
+                    help="also score the evaluation sets with the DeBERTa backend pulled into DIR (needs lump[ml])")
     tr.set_defaults(func=cmd_train)
     return p
 

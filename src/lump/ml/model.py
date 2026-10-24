@@ -9,8 +9,11 @@ File layout (little-endian)::
     D*C bytes int8 weights, feature-major (weight[i*C + c])
 
 The same file is loaded by ``extension/ml.js``. The header carries the
-sha256 of the weight block, verified on load, so a truncated or tampered
-model is rejected instead of silently mis-scoring.
+sha256 of the weight block, verified on load, and the header itself is
+validated (shapes, finite numbers, sane window sizes), so a corrupt or
+truncated file is rejected instead of crashing or silently mis-scoring.
+This is an integrity check, not authenticity: anyone who can write the file
+can rewrite its header too, so protect the install like any other code.
 """
 
 from __future__ import annotations
