@@ -19,16 +19,16 @@ import urllib.parse
 from dataclasses import dataclass, field
 
 # Zero-width and formatting characters that render as nothing.
-_ZERO_WIDTH = "​‌‍⁠⁡⁢⁣⁤﻿᠎­"
+_ZERO_WIDTH = "\u200b\u200c\u200d\u2060\u2061\u2062\u2063\u2064\ufeff\u180e\u00ad"
 # Bidirectional overrides/isolates ("Trojan Source").
-_BIDI = "‪‫‬‭‮⁦⁧⁨⁩‎‏"
+_BIDI = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f"
 _INVISIBLE_RE = re.compile(f"[{_ZERO_WIDTH}{_BIDI}]")
 _BIDI_RE = re.compile(f"[{_BIDI}]")
 # Unicode "tag" characters (U+E0000-U+E007F) mirror ASCII and are invisible:
 # the basis of "ASCII smuggling" attacks.
 _TAG_RE = re.compile("[\U000e0000-\U000e007f]+")
 # Variation selectors can carry one byte each ("emoji smuggling").
-_VS_RE = re.compile("[︀-️\U000e0100-\U000e01ef]{4,}")
+_VS_RE = re.compile("[\ufe00-\ufe0f\U000e0100-\U000e01ef]{4,}")
 
 # Common Cyrillic / Greek / other look-alikes of Latin letters.
 _CONFUSABLES = str.maketrans(
@@ -118,7 +118,7 @@ def decode_variation_selectors(text: str) -> str:
 def strip_invisible(text: str) -> str:
     text = _INVISIBLE_RE.sub("", text)
     text = _TAG_RE.sub("", text)
-    return re.sub("[︀-️\U000e0100-\U000e01ef]", "", text)
+    return re.sub("[\ufe00-\ufe0f\U000e0100-\U000e01ef]", "", text)
 
 
 def fold_confusables(text: str) -> str:
@@ -131,7 +131,7 @@ def canonicalize(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = strip_invisible(text)
     text = fold_confusables(text)
-    return re.sub(r"[ \t 　]+", " ", text)
+    return re.sub(r"[ \t\u00a0\u3000]+", " ", text)
 
 
 def _decode_b64(candidate: str) -> str | None:

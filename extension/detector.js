@@ -67,7 +67,7 @@ const Lump = (() => {
     let out = text.normalize("NFKC");
     out = stripInvisible(out);
     out = foldConfusables(out);
-    return out.replace(/[ \t 　]+/g, " ");
+    return out.replace(/[ \t\u00a0\u3000]+/g, " ");
   }
   function views(text) {
     const v = [["original", text]];

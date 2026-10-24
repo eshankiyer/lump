@@ -9,7 +9,7 @@ from lump.engine.normalize import (
 
 
 def test_strip_zero_width():
-    assert strip_invisible("ig​no‌re") == "ignore"
+    assert strip_invisible("ig\u200bno\u200cre") == "ignore"
 
 
 def test_canonicalize_folds_confusables_and_nfkc():

@@ -45,7 +45,8 @@ def export_rules(include_catalog: bool = True) -> dict[str, Any]:
 
 
 def export_json(indent: int | None = 2, include_catalog: bool = True) -> str:
-    return json.dumps(export_rules(include_catalog), indent=indent, ensure_ascii=False)
+    # ensure_ascii: the invisible-character lists must stay escaped, never raw.
+    return json.dumps(export_rules(include_catalog), indent=indent, ensure_ascii=True)
 
 
 # Re-export for the shingling helper used by tests.
