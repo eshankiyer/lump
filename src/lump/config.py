@@ -226,7 +226,9 @@ def _build_catalog(data: dict, catalog: Catalog) -> None:
 def _build_agent_policy(data: dict) -> AgentPolicy:
     allowed = data.get("allowed_tools")
     return AgentPolicy(
-        allowed_tools=set(allowed) if allowed is not None else None,
+        # An empty list means "no allow-list" (allow all), not "allow nothing":
+        # an allow-list that blocks every tool is never what a config means.
+        allowed_tools=set(allowed) if allowed else None,
         denied_tools=set(data.get("denied_tools", [])),
         denied_capabilities=set(data.get("denied_capabilities", [])),
         approval_capabilities=set(data.get("approval_capabilities", ["payment", "privileged"])),

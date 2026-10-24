@@ -162,7 +162,9 @@ class AgenticDetector:
                     Finding(
                         detector=self.name, rule_id="AG-CALL-003",
                         title=f"Denied capability '{cap}' via tool '{call.name}'",
-                        severity=Severity.HIGH, confidence=0.85, category=f"agentic.capability.{cap}",
+                        # A configured denial is a policy decision, blocked like a
+                        # denied tool (category "agentic.policy.*").
+                        severity=Severity.HIGH, confidence=0.85, category=f"agentic.policy.capability.{cap}",
                         evidence=snippet(call.arguments, 0, 120), owasp=("ASI02", "ASI03", "LLM06"),
                         metadata={"tool": call.name, "capability": cap, "decision": "block"},
                     )

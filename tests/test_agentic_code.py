@@ -58,3 +58,15 @@ def test_slopsquat_detection():
 def test_code_benign():
     d = CodeDetector()
     assert d.detect("def add(a, b):\n    return a + b") == []
+
+
+def test_denied_capability_blocks_under_the_default_policy_and_empty_allow_list_allows_all():
+    from lump import Engine
+    from lump.config import _build_agent_policy
+    from lump.engine.agentic import ToolCall
+    from lump.engine.types import Action
+
+    policy = _build_agent_policy({"denied_capabilities": ["payment"], "allowed_tools": []})
+    assert policy.allowed_tools is None
+    v = Engine().inspect_tool_call(ToolCall("send_money", '{"amount": 10}'), policy)
+    assert any(f.rule_id == "AG-CALL-003" for f in v.findings) and v.action is Action.BLOCK

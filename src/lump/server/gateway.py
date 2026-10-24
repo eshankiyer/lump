@@ -170,7 +170,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if urlparse(self.path).path == "/healthz":
-            return self._send_json(200, {"status": "ok", "upstream": self.upstream_url})
+            return self._send_json(200, {"status": "ok", "upstream": self.upstream_url, "ml": self.engine.ml_status()})
         self._forward(b"")
 
     def do_POST(self) -> None:  # noqa: N802

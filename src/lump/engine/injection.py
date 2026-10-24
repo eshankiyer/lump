@@ -204,6 +204,10 @@ class InjectionDetector:
                 weight, rule_id, title, evidence = 0.25, "OB-004", "Zero-width characters inside text", detail
             elif kind == "homoglyphs":
                 weight, rule_id, title, evidence = 0.3, "OB-005", "Homoglyph (look-alike) characters", detail
+            elif kind == "encoded_overflow":
+                # Too many encoded blobs to inspect them all: the classic way to
+                # bury one payload among decoys. Never pass silently.
+                weight, rule_id, title, evidence = 0.4, "OB-007", "More encoded segments than could be inspected", detail
             elif kind.startswith("encoded_"):
                 # Encoded prose alone is weak; encoded prose that also carries
                 # instructions is already escalated through the rule views.

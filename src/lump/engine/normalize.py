@@ -61,7 +61,11 @@ _B64_RE = re.compile(r"(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/_-]{20,}={0,2}(?![A-Za-z
 _HEX_RE = re.compile(r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){12,}(?![0-9A-Fa-f])")
 _PCT_RE = re.compile(r"(?:%[0-9A-Fa-f]{2}){6,}")
 
-MAX_DECODED_SEGMENTS = 24
+# Decoding budget. Generous enough that decoy blobs placed in front of a
+# payload do not push it out of view; when it is exhausted, an
+# "encoded_overflow" signal is raised rather than silently stopping.
+MAX_DECODED_SEGMENTS = 128
+MAX_DECODED_CHARS = 262144  # total candidate characters examined per text
 MAX_SEGMENT_CHARS = 16384
 
 
@@ -172,12 +176,17 @@ def _decode_pct(candidate: str) -> str | None:
     return decoded if decoded != candidate and _looks_textual(decoded) else None
 
 
-def decode_layers(text: str, depth: int = 2) -> list[tuple[str, str]]:
-    """Recover base64 / hex / percent-encoded natural-language payloads."""
+def decode_layers(text: str, depth: int = 2, overflow: list | None = None) -> list[tuple[str, str]]:
+    """Recover base64 / hex / percent-encoded natural-language payloads.
+
+    ``overflow`` (a list) gets an entry if the decoding budget ran out before
+    every candidate was examined.
+    """
 
     found: list[tuple[str, str]] = []
     frontier = [text]
     seen: set[tuple[str, str]] = set()  # per decoder: a hex run also matches the base64 pattern
+    budget = MAX_DECODED_CHARS
     for _ in range(depth):
         nxt: list[str] = []
         for chunk in frontier:
@@ -187,12 +196,15 @@ def decode_layers(text: str, depth: int = 2) -> list[tuple[str, str]]:
                 ("percent", _PCT_RE, _decode_pct),
             ):
                 for match in regex.finditer(chunk):
-                    if len(found) >= MAX_DECODED_SEGMENTS:
-                        return found
                     candidate = match.group()[:MAX_SEGMENT_CHARS]
                     if (kind, candidate) in seen:
                         continue
+                    if len(found) >= MAX_DECODED_SEGMENTS or budget < len(candidate):
+                        if overflow is not None:
+                            overflow.append(kind)
+                        return found
                     seen.add((kind, candidate))
+                    budget -= len(candidate)
                     decoded = decoder(candidate)
                     if decoded:
                         found.append((kind, decoded))
@@ -250,11 +262,15 @@ def normalize(text: str) -> Normalized:
     if leet != canonical:
         norm.views.append(("deleet", leet))
 
-    for kind, decoded in decode_layers(canonical):
+    overflow: list[str] = []
+    for kind, decoded in decode_layers(canonical, overflow=overflow):
         norm.signals.append((f"encoded_{kind}", f"{kind}-encoded natural language payload"))
         norm.hidden_payloads.append((kind, decoded))
         norm.views.append((kind, canonicalize(decoded)))
 
+    if overflow:
+        norm.signals.append(("encoded_overflow", f"more encoded segments than the decoding budget "
+                                                 f"({MAX_DECODED_SEGMENTS} segments / {MAX_DECODED_CHARS} characters)"))
     if re.search(r"\brot[- ]?13\b", canonical, re.IGNORECASE):
         norm.views.append(("rot13", codecs.decode(canonical, "rot_13")))
     return norm

@@ -109,7 +109,7 @@ const Lump = (() => {
   const B64_RE = /(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/_-]{20,}={0,2}(?![A-Za-z0-9+/=_-])/g;
   const HEX_RE = /(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){12,}(?![0-9A-Fa-f])/g;
   const PCT_RE = /(?:%[0-9A-Fa-f]{2}){6,}/g;
-  const MAX_DECODED_SEGMENTS = 24, MAX_SEGMENT_CHARS = 16384;
+  const MAX_DECODED_SEGMENTS = 128, MAX_DECODED_CHARS = 262144, MAX_SEGMENT_CHARS = 16384; // normalize.py
   function decodeB64(c) {
     const s = c.trim();
     if (s.length % 4 === 1) return null;
@@ -133,16 +133,17 @@ const Lump = (() => {
   }
   function decodeLayers(text, depth = 2) {
     const found = [], seen = new Set();
-    let frontier = [text];
+    let frontier = [text], budget = MAX_DECODED_CHARS;
     for (let level = 0; level < depth && frontier.length; level++) {
       const next = [];
       for (const chunk of frontier) {
         for (const [kind, re, dec] of [["base64", B64_RE, decodeB64], ["hex", HEX_RE, decodeHex], ["percent", PCT_RE, decodePct]]) {
           for (const m of chunk.matchAll(re)) {
-            if (found.length >= MAX_DECODED_SEGMENTS) return found;
             const cand = m[0].slice(0, MAX_SEGMENT_CHARS);
             if (seen.has(kind + ":" + cand)) continue; // per decoder: hex runs also match base64
+            if (found.length >= MAX_DECODED_SEGMENTS || budget < cand.length) return found;
             seen.add(kind + ":" + cand);
+            budget -= cand.length;
             const d = dec(cand);
             if (d) { found.push([kind, d]); next.push(d); }
           }
