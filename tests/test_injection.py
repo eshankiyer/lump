@@ -2,12 +2,15 @@ import base64
 
 import pytest
 
-from lump import Context, Direction, Engine
+from lump import Context, Direction, Engine, EngineConfig
+from lump.ml.detector import MLSettings
 
 
 @pytest.fixture(scope="module")
 def engine():
-    return Engine()
+    # The rule engine on its own; the learned classifier and the full engine
+    # are covered in test_ml.py / test_ml_bundled.py.
+    return Engine(config=EngineConfig(ml=MLSettings(enabled=False)))
 
 
 @pytest.mark.parametrize(

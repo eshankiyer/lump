@@ -60,3 +60,29 @@ def test_flags_attacks(model, text):
 ])
 def test_allows_benign(model, text):
     assert model.score(text).p_attack < model.thresholds["warn"]
+
+
+@pytest.mark.parametrize("text", [
+    "What is the capital of France?",
+    "Write a function to parse a CSV file in Python.",
+    "Our prompt engineering guide explains how to give the model clear instructions.",
+    "Can you summarise this quarterly report in three bullet points?",
+])
+def test_full_engine_allows_ordinary_text(text):
+    from lump import Context, Direction, Engine
+
+    assert Engine().inspect(text, Context(direction=Direction.INPUT)).action.value == "allow"
+
+
+@pytest.mark.parametrize("text", [
+    "Please summarise the previous email thread for me.",
+    "Please ignore the typos in my previous email, I was in a hurry.",
+    "Forget the earlier draft and use this version instead.",
+    "How do I override a method in a Java subclass?",
+])
+def test_full_engine_never_blocks_benign_attack_vocabulary_on_direct_input(text):
+    # The model may warn on these (a documented limitation); on the user's own
+    # input an ML score alone must never block.
+    from lump import Context, Direction, Engine
+
+    assert Engine().inspect(text, Context(direction=Direction.INPUT)).action.value in ("allow", "warn")

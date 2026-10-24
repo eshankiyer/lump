@@ -31,12 +31,15 @@ def render(summary: dict, header: dict) -> str:
         "A multinomial logistic-regression model over hashed word 1–2-grams and character 3–5-grams "
         f"(2^{header['features']['hash_bits']} buckets, signed hashing, sub-linear TF, L2 norm), int8-quantised. "
         "It runs with zero dependencies in Python and in the browser extension, from the same file, "
-        "and scores a typical prompt in about a millisecond. It complements the rule engine: the rules are "
+        "and scores a typical prompt in well under a millisecond (about 0.3 ms in CPython). It complements the "
+        "rule engine: the rules are "
         "literal and precise, the model catches reworded attacks.",
         "",
         "## Operating points",
         "",
-        "Chosen on the validation split so that a given share of benign validation prompts would be flagged.",
+        "Chosen on the validation split so that a given share of benign validation prompts would be flagged. "
+        "No threshold is set below 0.5, so when the model is cleaner than the target on validation data the warn "
+        "point stays at 0.5 and flags fewer than 2%.",
         "",
         "| Level | Threshold | Target benign FPR (validation) | Default policy |",
         "|---|---|---|---|",
