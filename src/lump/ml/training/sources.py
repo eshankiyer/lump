@@ -80,14 +80,18 @@ SOURCES: tuple[Source, ...] = (
            notes="Paired tool responses with and without a planted injection. Injections are joined back to neuralchemy: its benign edge cases, research-only and harmful-request rows, and a builder artifact are dropped."),
     Source("Aditi20/tool-guardrail-dataset", "apache-2.0", "train", "tool_guardrail", "6525096f357ca206f59d3e7f0949267ecc96d1ec",
            notes="Tool outputs with planted instructions and look-alike benign outputs; each attack also gets a format-matched benign twin. The GPL-3.0 NL2Bash rows are excluded."),
-    Source("glaiveai/glaive-code-assistant", "apache-2.0", "train", "benign_question", "398ce053096475671e8d3872b8e5b28b59f8fcec", max_rows=9000,
-           notes="Real-world style developer questions (encodings, passwords, regexes, shells): hard negatives against topic shortcuts."),
+    Source("glaiveai/glaive-code-assistant", "apache-2.0", "train", "benign_question_glaive", "398ce053096475671e8d3872b8e5b28b59f8fcec", max_rows=9000,
+           notes="Developer questions (encodings, passwords, regexes, shells): hard negatives against topic shortcuts. Rows 0-31,003 "
+                 "are paraphrased StackOverflow questions (CC-BY-SA) and are not used."),
     Source("ise-uiuc/Magicoder-OSS-Instruct-75K", "mit", "train", "benign_problem", "5f839b1f368a76b161028bb9edff055db34022b2", max_rows=5000,
-           notes="Programming problems (security-adjacent ones preferred: passwords, API keys, encodings, hashing)."),
+           notes="Programming problems (security-adjacent ones preferred: passwords, API keys, encodings, hashing); the generator's "
+                 "fixed opening clause is rewritten and key-like values copied from code seeds are scrubbed."),
     Source("nvidia/OpenCodeInstruct", "cc-by-4.0", "train", "benign_input", "8f3ba5bafe4d6e8db46082cf7ae6741bc370604d", max_rows=3000,
-           notes="Programming tasks; the '**Input:**' / '**Sample Input:**' scaffolding is cut so the template is not a benign cue."),
+           notes="Programming tasks; the '**Input:**' / '**Sample Input:**' scaffolding is cut and the fixed opening clause "
+                 "rewritten, so the template is not a benign cue."),
     Source("nvidia/HelpSteer2", "cc-by-4.0", "train", "helpsteer", "990b2711a36180dd19d9c94b8627844866f8982a", max_rows=3000,
-           notes="Real user prompts (mostly ShareGPT); opening user turn only, jailbreaks found in it are dropped."),
+           notes="Real user prompts (mostly ShareGPT); opening user turn only; jailbreaks in it (named personas, override "
+                 "variants, near-duplicates of known jailbreaks) are dropped."),
     # --- out-of-distribution holdouts (never trained on) ---------------------------
     Source("wambosec/prompt-injections", "mit", "holdout", "wambosec", "071ee17a60112b7f9f808398156b430aadfaf1d2",
            notes="88 attack categories incl. encodings; benign developer questions that look similar."),

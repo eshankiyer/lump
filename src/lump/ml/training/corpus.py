@@ -565,16 +565,53 @@ def _benign_ok(text: str) -> bool:
     return not _BENIGN_GUARD.search(text)
 
 
-def _field_benign(field_name: str, max_len: int = 4000, cut: str | None = None):
+# Code-task generators open almost every problem with the same clause ("You
+# are tasked with ...", "You are given ..."), which no attack uses: left as is
+# it becomes a free "benign" cue an attacker could borrow. Rewritten to
+# ordinary openers.
+_TEMPLATE_OPENER = re.compile(r"^\s*You are (tasked with|given|working on)\s+", re.I)
+_OPENERS = {
+    "tasked with": ("Help me with ", "I need help with ", "Can you help with ", "Task: ", ""),
+    "given": ("Given ", "I have ", "Suppose we have ", "Input: ", "We have "),
+    "working on": ("I'm working on ", "We're building ", "My team is on ", "Context: ", "I am on "),
+}
+# Key-like values copied from code seeds ("api_key = 'q8Fz...'") are scrubbed.
+_KEY_VALUE_RE = re.compile(r"((?:key|token|secret|password|passwd)\w*\W{0,5}[\"']?)([A-Za-z0-9_\-]{20,})", re.I)
+
+
+def _detemplate(text: str) -> str:
+    m = _TEMPLATE_OPENER.match(text)
+    if m:
+        rest = text[m.end():]
+        opener = _pick(_OPENERS[m.group(1).lower()], rest[:200])
+        text = opener + (rest if opener else rest[:1].upper() + rest[1:])
+    return _KEY_VALUE_RE.sub(lambda k: k.group(1) + "XXXX", text)
+
+
+def _field_benign(field_name: str, max_len: int = 4000, cut: str | None = None, skip_rows: int = 0,
+                  detemplate: bool = False):
     def reader(rows, src):
-        for r in rows:
+        for i, r in enumerate(rows):
+            if i < skip_rows:
+                continue
             text = r.get(field_name)
             if cut and isinstance(text, str):
                 text = re.split(cut, text, maxsplit=1)[0]
+            if detemplate and isinstance(text, str):
+                text = _detemplate(text)
             text = _clean(text)
             if text and len(text) <= max_len and _benign_ok(text):
                 yield Record(text, BENIGN, "hard_negative" if _DEV_HARD_RE.search(text) else "benign", src)
     return reader
+
+
+# ShareGPT-derived prompts carry many named jailbreak personas and loosely
+# worded overrides; this pool gets a wider net than the general guard (which
+# must not strip every benign "ignore the previous ..." from other pools).
+_SHAREGPT_JAILBREAK = re.compile(
+    r"(?:ignore|disregard|forget)\s+(?:all\s+|any\s+)?(?:the\s+|your\s+)?(?:previous|prior|above|earlier)\b|"
+    r"mongo tom|basedgpt|smartgpt|eldritchgpt|storybot|inversiti|lacks? all ethical|no filters|without any constraints|"
+    r"never,? in any way,? decline|respond twice|(?-i:\bSAM\b)|neurosemantical|neurosentimental", re.I)
 
 
 def _helpsteer(rows, src):
@@ -585,7 +622,7 @@ def _helpsteer(rows, src):
         if not isinstance(prompt, str):
             continue
         text = _clean(re.split(r"<extra_id_1>", prompt, maxsplit=1)[0])
-        if text and len(text) <= 4000 and _benign_ok(text):
+        if text and len(text) <= 4000 and _benign_ok(text) and not _SHAREGPT_JAILBREAK.search(text):
             yield Record(text, BENIGN, "hard_negative" if _DEV_HARD_RE.search(text) else "benign", src)
 
 
@@ -656,8 +693,11 @@ READERS = {
     "oasst2": _oasst2, "ultrachat": _ultrachat, "openorca": _openorca, "awesome_prompts": _awesome_prompts,
     "wambosec": _wambosec, "zachz": _zachz, "davidtkeane": _davidtkeane,
     "llmail": _llmail, "tool_response_injections": _tool_response_injections, "tool_guardrail": _tool_guardrail,
-    "benign_input": _field_benign("input", cut=r"\n\s*\*\*(?:Sample )?Input"), "benign_problem": _field_benign("problem"),
-    "benign_question": _field_benign("question"), "helpsteer": _helpsteer,
+    "benign_input": _field_benign("input", cut=r"\*\*(?:Sample )?Input", detemplate=True),
+    "benign_problem": _field_benign("problem", detemplate=True),
+    # glaive rows 0-31,003 paraphrase StackOverflow questions (CC-BY-SA), excluded.
+    "benign_question_glaive": _field_benign("question", skip_rows=31004),
+    "helpsteer": _helpsteer,
 }
 
 
@@ -724,6 +764,11 @@ def remove_near_duplicates(pool: list[Record], references: list[Record], thresho
     return kept, dropped
 
 
+_CHAT_POOLS = frozenset({"nvidia/HelpSteer2", "OpenAssistant/oasst2", "HuggingFaceH4/ultrachat_200k",
+                         "djapp18/JailbreaksOverTime", "TrustAIRLab/in-the-wild-jailbreak-prompts",
+                         "fka/awesome-chatgpt-prompts"})
+
+
 def _bucket(key: str) -> float:
     return int.from_bytes(hashlib.blake2b(key.encode(), digest_size=8).digest(), "big") / 2**64
 
@@ -785,8 +830,17 @@ def build(extra_train: list[Record] | None = None, extra_eval: dict[str, list[Re
     exact_removed = sum(1 for k in pool_by_key if k in claimed)
     all_eval = [r for recs in cleaned_eval.values() for r in recs]
     pool, near_removed = remove_near_duplicates(pool, all_eval)
+    # Chat pools (ShareGPT / WildChat style) contain reworded copies of known
+    # jailbreaks. A benign record that near-duplicates an attack in the pool is
+    # dropped (the attack is kept). Deliberate look-alike pairs (benign twins,
+    # counterfactuals) come from other sources and are not touched.
+    attacks = [r for r in pool if r.label == ATTACK]
+    chat = [r for r in pool if r.label == BENIGN and r.source in _CHAT_POOLS]
+    kept_chat, chat_removed = remove_near_duplicates(chat, attacks)
+    kept_ids = {id(r) for r in kept_chat}
+    pool = [r for r in pool if not (r.label == BENIGN and r.source in _CHAT_POOLS) or id(r) in kept_ids]
     log(f"  pool: {len(pool)} unique  (label conflicts dropped: {conflicts}, eval exact dups removed: {exact_removed}, "
-        f"eval near-dups removed: {near_removed})")
+        f"eval near-dups removed: {near_removed}, chat-pool look-alikes of attacks removed: {chat_removed})")
 
     # 3) deterministic split of the pool.
     splits: dict[str, list[Record]] = {"train": [], "val": [], "test_id": []}

@@ -1,0 +1,65 @@
+Lump
+Copyright 2026 Lump contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Built-in ML model (src/lump/data/models/injection-v1.lumpml, also shipped as
+extension/models/injection-v1.lumpml)
+--------------------------------------------------------------------------
+The model weights were trained on the public datasets below, each used under
+its license. Datasets under CC-BY-4.0 and ODC-BY are attributed here as those
+licenses require; no dataset text is redistributed in this repository except
+the small reworded-attack sets written for this project
+(src/lump/ml/training/data/, Apache-2.0). Exact revisions and file hashes are
+pinned in src/lump/ml/training/sources.lock.json.
+
+- deepset/prompt-injections (apache-2.0), training: https://huggingface.co/datasets/deepset/prompt-injections
+- jackhhao/jailbreak-classification (apache-2.0), training: https://huggingface.co/datasets/jackhhao/jailbreak-classification
+- Lakera/gandalf_ignore_instructions (mit), training: https://huggingface.co/datasets/Lakera/gandalf_ignore_instructions
+- TrustAIRLab/in-the-wild-jailbreak-prompts (mit), training: https://huggingface.co/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts
+- reshabhs/SPML_Chatbot_Prompt_Injection (mit), training: https://huggingface.co/datasets/reshabhs/SPML_Chatbot_Prompt_Injection
+- nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1 (cc-by-4.0), training: https://huggingface.co/datasets/nvidia/Nemotron-RL-Agentic-Indirect-Prompt-Injection-v1
+- nvidia/Nemotron-RL-Jailbreak-Robustness-v1 (cc-by-4.0), training: https://huggingface.co/datasets/nvidia/Nemotron-RL-Jailbreak-Robustness-v1
+- neuralchemy/Prompt-injection-dataset (apache-2.0), training: https://huggingface.co/datasets/neuralchemy/Prompt-injection-dataset
+- Bravansky/compact-jailbreaks (mit), training: https://huggingface.co/datasets/Bravansky/compact-jailbreaks
+- djapp18/JailbreaksOverTime (cc-by-4.0), training: https://huggingface.co/datasets/djapp18/JailbreaksOverTime
+- OpenAssistant/oasst2 (apache-2.0), training: https://huggingface.co/datasets/OpenAssistant/oasst2
+- HuggingFaceH4/ultrachat_200k (mit), training: https://huggingface.co/datasets/HuggingFaceH4/ultrachat_200k
+- Open-Orca/OpenOrca (mit), training: https://huggingface.co/datasets/Open-Orca/OpenOrca
+- fka/awesome-chatgpt-prompts (cc0-1.0), training: https://huggingface.co/datasets/fka/awesome-chatgpt-prompts
+- microsoft/llmail-inject-challenge (mit), training: https://huggingface.co/datasets/microsoft/llmail-inject-challenge
+- rgeada/tool-response-injections (apache-2.0), training: https://huggingface.co/datasets/rgeada/tool-response-injections
+- Aditi20/tool-guardrail-dataset (apache-2.0), training: https://huggingface.co/datasets/Aditi20/tool-guardrail-dataset
+- glaiveai/glaive-code-assistant (apache-2.0), training: https://huggingface.co/datasets/glaiveai/glaive-code-assistant
+- ise-uiuc/Magicoder-OSS-Instruct-75K (mit), training: https://huggingface.co/datasets/ise-uiuc/Magicoder-OSS-Instruct-75K
+- nvidia/OpenCodeInstruct (cc-by-4.0), training: https://huggingface.co/datasets/nvidia/OpenCodeInstruct
+- nvidia/HelpSteer2 (cc-by-4.0), training: https://huggingface.co/datasets/nvidia/HelpSteer2
+- wambosec/prompt-injections (mit), evaluation only (never trained on): https://huggingface.co/datasets/wambosec/prompt-injections
+- zachz/prompt-injection-benchmark (mit), evaluation only (never trained on): https://huggingface.co/datasets/zachz/prompt-injection-benchmark
+- DavidTKeane/ai-prompt-ai-injection-dataset (mit), evaluation only (never trained on): https://huggingface.co/datasets/DavidTKeane/ai-prompt-ai-injection-dataset
+- 3nesdeniz/agentic-prompt-injection-5k (cc-by-4.0), training: https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-5k
+- 3nesdeniz/agentic-prompt-injection-boundary-pairs (cc-by-4.0), evaluation only (never trained on): https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs
+- 3nesdeniz/english-prompt-injection-3k (cc-by-4.0), evaluation only (never trained on): https://huggingface.co/datasets/3nesdeniz/english-prompt-injection-3k
+- 3nesdeniz/guardrail-hard-negatives (cc-by-4.0), evaluation only (never trained on): https://huggingface.co/datasets/3nesdeniz/guardrail-hard-negatives
+
+Sub-sources carried by the datasets above, as stated on their cards:
+- HackAPrompt (CC-BY-4.0), via neuralchemy/Prompt-injection-dataset.
+- WildChat user prompts (ODC-BY), via djapp18/JailbreaksOverTime.
+- NVIDIA Nemotron datasets and OpenCodeInstruct (CC-BY-4.0): (c) NVIDIA Corporation.
+Rows whose upstream licenses are non-commercial, share-alike or unstated were
+filtered out (see src/lump/ml/training/sources.py and corpus.py).
+Some of these datasets were generated with commercial LLM APIs (for example
+Aditi20/tool-guardrail-dataset with Gemini, Magicoder-OSS-Instruct with
+GPT-3.5); the model trained on them is a small text classifier, not a
+general-purpose language model.
+
+Unicode data
+------------
+src/lump/ml/unassigned.py and the matching table in extension/ml.js are derived
+from the Unicode Character Database (DerivedAge.txt), (c) Unicode, Inc., used
+under the Unicode License v3.
+
+Optional transformer backend (not bundled)
+------------------------------------------
+`lump model pull` downloads protectai/deberta-v3-base-prompt-injection-v2
+(Apache-2.0) from Hugging Face at a pinned revision.
