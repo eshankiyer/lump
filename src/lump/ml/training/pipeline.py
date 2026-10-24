@@ -19,6 +19,10 @@ from .evaluate import binary_metrics, labels_of
 from .train import TrainConfig, train
 
 AUGMENT_FILE = "reworded_augment.jsonl"
+# Benign texts that use attack vocabulary innocently ("the previous
+# instructions for the printer"), written and independently reviewed for this
+# project: counter-examples to the words-mean-attack shortcut.
+HARD_NEGATIVES_FILE = "hard_negatives.jsonl"
 REWORDED_EVAL_FILE = "reworded_eval.jsonl"
 
 
@@ -134,7 +138,7 @@ def run(out: Path, report: Path | None = None, offline_dir: Path | None = None, 
     from ..model import Model
     from .export import export
 
-    augment = bundled_records(AUGMENT_FILE, "lump/reworded-augment")
+    augment = bundled_records(AUGMENT_FILE, "lump/reworded-augment") + bundled_records(HARD_NEGATIVES_FILE, "lump/hard-negatives")
     reworded_eval = bundled_records(REWORDED_EVAL_FILE, "lump/reworded-eval")
     if corpus_cache and corpus_cache.exists():
         log(f"loading cached corpus {corpus_cache}")

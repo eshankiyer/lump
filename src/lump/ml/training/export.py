@@ -44,7 +44,8 @@ def build_header(result: dict, features: FeatureConfig, metrics: dict, version: 
                          "temperature-scaled",
             "class_counts": result.get("class_counts", {}),
             "sources": [{"id": s.id, "license": s.license, "role": s.role, "revision": s.revision} for s in SOURCES],
-            "augmentation": {"id": "lump/reworded-augment", "license": "Apache-2.0", "records": augment_count},
+            "augmentation": {"id": "lump/reworded-augment + lump/hard-negatives", "license": "Apache-2.0",
+                         "records": augment_count},
         },
     }
 

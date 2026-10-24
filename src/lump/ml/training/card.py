@@ -133,7 +133,7 @@ def render(summary: dict, header: dict) -> str:
         lines.append(f"| [{s.id}](https://huggingface.co/datasets/{s.id}) | {s.license} | {s.role} | `{s.revision[:12]}` |")
     aug = header.get("training", {}).get("augmentation", {})
     lines += [
-        f"| Lump reworded hard negatives (this repository) | Apache-2.0 | train | {aug.get('records', 0)} records |",
+        f"| Lump reworded attacks and hard negatives (this repository) | Apache-2.0 | train | {aug.get('records', 0)} records |",
         "",
         "Attribution: datasets under CC-BY-4.0 and ODC-BY are used under those licenses; see each dataset's card. "
         "Rows inside mixed-license datasets whose upstream licenses are non-commercial or missing were filtered "
